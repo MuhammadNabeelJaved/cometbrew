@@ -187,13 +187,13 @@ userSchema.methods.genrateRefreshToken = async function () {
 
 
 
-userSchema.pre(/^find/, function (next) {
-    this.find({
-        isActive: { $ne: false },
-        deletedAt: null,
-    });
-    next();
-});
+// userSchema.pre(/^find/, function (next) {
+//     this.find({
+//         isActive: { $ne: false },
+//         deletedAt: null,
+//     });
+//     next();
+// });
 
 
 const User = mongoose.model("User", userSchema);

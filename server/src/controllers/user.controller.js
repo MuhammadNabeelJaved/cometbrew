@@ -13,14 +13,14 @@ export const registerUser = asyncHandler(async (req, res) => {
         throw new AppError("Name, email and password are required", 400);
     }
 
-    const userExists = await User.findOne(
-        [{ email }, { password }]
-    );
-    if (userExists) {
-        throw new AppError("User already exists", 409);
-    }
+    const userExists = await User.findOne({
+        $or: [{ email }, { name }],
+    });
+if (userExists) {
+    throw new AppError("User already exists", 409);
+}
 
-    const user = await User.create({ name, email, password });
+const user = await User.create({ name, email, password });
 
-    successResponse(res, "User registered successfully", user, 201);
+successResponse(res, "User registered successfully", user, 201);
 });
