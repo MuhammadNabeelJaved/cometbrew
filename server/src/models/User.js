@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import validator from "validator";
 import crypto from "crypto";
+import jwt from "jsonwebtoken";
 
 const userSchema = new mongoose.Schema(
     {
@@ -117,6 +118,13 @@ userSchema.methods.comparePassword = async function (enteredPassword) {
     return await bcrypt.compare(enteredPassword, this.password);
 };
 
+userSchema.methods.genrateAccessToken = async function () {
+    return jwt.sign({ id: this._id }, process.env.JWT_ACCESS_SECRET, { expiresIn: process.env.JWT_ACCESS_SECRET_EXPIRES_IN })
+}
+
+userSchema.methods.genrateRefreshToken = async function () {
+    return jwt.sign({ id: this._id }, process.env.JWT_REFRESH_SECRET, { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN })
+}
 
 // userSchema.methods.changedPasswordAfter = function (JWTTimestamp) {
 //     if (this.passwordChangedAt) {
