@@ -113,10 +113,30 @@ userSchema.pre("save", async function (next) {
     next();
 });
 
+
+userSchema.methods.genrateVerificationCode = async function () {
+    const code = Math.floor(100000 + Math.random() * 900000).toString()
+    this.verificationCode = code
+    this.verificationCodeExpires = Date.now() + 1000 * 60 * 10 // 10 minutes
+    await this.save()
+    return code
+}
+
+
+
 userSchema.methods.comparePassword = async function (enteredPassword) {
     if (!enteredPassword) return false;
     return await bcrypt.compare(enteredPassword, this.password);
 };
+
+
+userSchema.methods.isVerificationCodeCorrect = async function (code) {
+    return this.verificationCode === code && this.verificationCodeExpires > Date.now()
+}
+
+userSchema.methods.isVerificationCodeExpired = async function () {
+    return this.verificationCodeExpires < Date.now()
+}
 
 userSchema.methods.genrateAccessToken = async function () {
     return jwt.sign({ id: this._id }, process.env.JWT_ACCESS_SECRET, { expiresIn: process.env.JWT_ACCESS_SECRET_EXPIRES_IN })
