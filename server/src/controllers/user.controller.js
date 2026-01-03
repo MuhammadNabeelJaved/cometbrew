@@ -94,6 +94,8 @@ export const loginUser = asyncHandler(async (req, res) => {
     if (!email || !password) {
         throw new AppError("Email and password are required", 400);
     }
+
+    console.log("Password:", password);
     const user = await User.findOne({ email }).select("+password");
 
     if (!user) {
@@ -112,7 +114,7 @@ export const loginUser = asyncHandler(async (req, res) => {
     user.password = undefined;
 
     // Generate JWT tokens
-    const { accessToken, refreshToken } = await jwtTokens(createdUser);
+    const { accessToken, refreshToken } = await jwtTokens(user);
 
     if (!accessToken || !refreshToken) {
         throw new AppError("Token generation failed", 500);
@@ -254,7 +256,7 @@ export const forgotPassword = asyncHandler(async (req, res) => {
         if (!email) {
             throw new AppError("Email is required", 400);
         }
-        const user = await User.findOne({ email });
+        const user = await User.findOne({ email }).select("+password");
         if (!user) {
             throw new AppError("User not found", 404);
         }
@@ -292,10 +294,12 @@ export const resetPassword = asyncHandler(async (req, res) => {
             passwordResetToken: hashedToken,
             passwordResetExpires: { $gt: Date.now() },
         });
+
         if (!user) {
             throw new AppError("Invalid or expired reset token", 400);
         }
-        user.password = await bcrypt.hash(newPassword, 10);
+        console.log("User:", user);
+        user.password = newPassword
         user.passwordResetToken = undefined;
         user.passwordResetExpires = undefined;
         await user.save();

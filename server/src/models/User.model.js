@@ -32,7 +32,6 @@ const userSchema = new mongoose.Schema(
             required: [true, "Password is required"],
             minlength: [8, "Password must be at least 8 characters"],
             // maxlength: [20, "Password cannot exceed 20 characters"],
-            select: false, // 🔐 never return password
         },
 
         // =====================
@@ -148,7 +147,7 @@ userSchema.methods.forgetPasswordToken = async function () {
     const resetToken = crypto.randomBytes(20).toString("hex");
     this.passwordResetToken = crypto.createHash("sha256").update(resetToken).digest("hex");
     this.passwordResetExpires = Date.now() + 1000 * 60 * 10; // 10 minutes
-    await this.save();
+    // await this.save();
     return resetToken;
 }
 
