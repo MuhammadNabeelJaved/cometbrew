@@ -23,6 +23,35 @@ export const registerUser = asyncHandler(async (req, res) => {
 
         const user = await User.create({ name, email, password });
 
+        if (!user) {
+            throw new AppError("User registration failed", 500);
+        }
+
+        // Email verification logic can be added here
+
+        const code = await user.genrateVerificationCode();
+        console.log("Verification code:", code);
+        await user.save();
+
+        // Generate JWT tokens
+        const accessToken = await user.genrateAccessToken();
+        const refreshToken = await user.genrateRefreshToken();
+        // Set tokens in HTTP-only cookies
+
+        res.cookie("accessToken", accessToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "Strict",
+            maxAge: 15 * 60 * 1000, // 15 minutes
+        });
+
+        res.cookie("refreshToken", refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "Strict",
+            maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        });
+
         successResponse(res, "User registered successfully", user, 201);
     } catch (error) {
         console.error("Error in registerUser:", error);
@@ -40,12 +69,35 @@ export const loginUser = asyncHandler(async (req, res) => {
     }
     const user = await User.findOne({ email }).select("+password");
 
-    if (!user || !(await user.comparePassword(password))) {
-        throw new AppError("Invalid email or password", 401);
+    if (!user) {
+        throw new AppError("User not found", 404);
+    }
+
+    if (!(await user.comparePassword(password))) {
+        throw new AppError("Invalid password", 401);
     }
 
     // Skip password field in response
     user.password = undefined;
+
+    // Generate JWT tokens
+    const accessToken = await user.genrateAccessToken();
+    const refreshToken = await user.genrateRefreshToken();
+    // Set tokens in HTTP-only cookies
+
+    res.cookie("accessToken", accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "Strict",
+        maxAge: 15 * 60 * 1000, // 15 minutes
+    });
+
+    res.cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "Strict",
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    });
 
 
     successResponse(res, "User logged in successfully", user, 200);
@@ -71,3 +123,15 @@ export const getUserProfile = asyncHandler(async (req, res) => {
     }
 });
 
+// Delete user controller functions can be added here
+
+export const deleteUser = asyncHandler(async (req, res) => {
+    try {
+        const userId = req.params.id;
+        await User.findByIdAndDelete(userId);
+        successResponse(res, "User deleted successfully", null, 200);
+    } catch (error) {
+        console.error("Error in deleteUser:", error);
+        throw new AppError(`Failed to delete user: ${error.message}`, 500);
+    }
+});
