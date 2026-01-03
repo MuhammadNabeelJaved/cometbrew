@@ -190,7 +190,7 @@ export const updateUserProfile = asyncHandler(async (req, res) => {
     }
 });
 
-// Update user password logic can be added here
+// Update user password and forgot password logic can be added here
 export const updateUserPassword = asyncHandler(async (req, res) => {
     try {
         const userId = req.params.id;
@@ -215,5 +215,27 @@ export const updateUserPassword = asyncHandler(async (req, res) => {
     } catch (error) {
         console.error("Error in updateUserPassword:", error);
         throw new AppError(`Failed to update password: ${error.message}`, 500);
+    }
+});
+
+export const forgotPassword = asyncHandler(async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            throw new AppError("Email is required", 400);
+        }
+        const user = await User.findOne({ email });
+        if (!user) {
+            throw new AppError("User not found", 404);
+        }
+        const resetToken = await user.forgetPasswordToken();
+        const resetUrl = `${req.protocol}://${req.get("host")}/api/v1/auth/reset-password/${resetToken}`;
+        console.log("Password reset URL:", resetUrl);
+
+        // Send password reset email
+        successResponse(res, "Password reset email sent successfully", null, 200);
+    } catch (error) {
+        console.error("Error in forgotPassword:", error);
+        throw new AppError(`Failed to send password reset email: ${error.message}`, 500);
     }
 });
