@@ -44,6 +44,14 @@ const userSchema = new mongoose.Schema(
             default: "user",
             index: true,
         },
+        accessToken: {
+            type: String,
+            select: false,
+        },
+        refreshToken: {
+            type: String,
+            select: false,
+        },
 
         permissions: {
             type: [String],

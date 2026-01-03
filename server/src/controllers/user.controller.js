@@ -3,6 +3,21 @@ import AppError from "../utils/AppError.js";
 import { successResponse } from "../utils/apiResponse.js";
 import User from "../models/User.model.js";
 
+
+
+// Generate JWT tokens 
+
+const jwtTokens = async (user) => {
+    if (!user) {
+        throw new AppError("User not found", 404);
+    }
+
+    const accessToken = await user.genrateAccessToken();
+    const refreshToken = await user.genrateRefreshToken();
+    await user.save({ validateBeforeSave: false });
+    return { accessToken, refreshToken };
+}
+
 // @desc    Register a new user
 export const registerUser = asyncHandler(async (req, res) => {
     try {
@@ -37,8 +52,12 @@ export const registerUser = asyncHandler(async (req, res) => {
 
 
         // Generate JWT tokens
-        const accessToken = await createdUser.genrateAccessToken();
-        const refreshToken = await createdUser.genrateRefreshToken();
+        const { accessToken, refreshToken } = await jwtTokens(createdUser);
+
+        if (!accessToken || !refreshToken) {
+            throw new AppError("Token generation failed", 500);
+        }
+
         // Set tokens in HTTP-only cookies
 
         res.cookie("accessToken", accessToken, {
@@ -91,8 +110,11 @@ export const loginUser = asyncHandler(async (req, res) => {
     user.password = undefined;
 
     // Generate JWT tokens
-    const accessToken = await user.genrateAccessToken();
-    const refreshToken = await user.genrateRefreshToken();
+    const { accessToken, refreshToken } = await jwtTokens(createdUser);
+
+    if (!accessToken || !refreshToken) {
+        throw new AppError("Token generation failed", 500);
+    }
     // Set tokens in HTTP-only cookies
 
     res.cookie("accessToken", accessToken, {
