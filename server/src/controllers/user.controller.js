@@ -191,6 +191,9 @@ export const getUserProfile = asyncHandler(async (req, res) => {
 export const deleteUser = asyncHandler(async (req, res) => {
     try {
         const userId = req.params.id;
+        if (!userId) {
+            throw new AppError("User ID is required", 400);
+        }
         await User.findByIdAndDelete(userId);
         successResponse(res, "User deleted successfully", null, 200);
     } catch (error) {
