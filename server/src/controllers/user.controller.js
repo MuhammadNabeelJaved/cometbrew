@@ -179,6 +179,9 @@ export const updateUserProfile = asyncHandler(async (req, res) => {
         if (!req.body || Object.keys(req.body).length === 0) {
             throw new AppError("No data provided for update", 400);
         }
+        if (updates.password || updates.email) {
+            throw new AppError("Cannot update password or email through this route", 400);
+        }
         const updatedUser = await User.findByIdAndUpdate(userId, updates, { new: true });
         if (!updatedUser) {
             throw new AppError("User not found", 404);
