@@ -1,5 +1,8 @@
 import { Router } from 'express';
-import { registerUser, loginUser, getUserProfile, deleteUser, getAllUserProfile, updateUserProfile, updateUserPassword, forgotPassword } from '../controllers/user.controller.js';
+import {
+    registerUser, loginUser, getUserProfile, deleteUser, getAllUserProfile,
+    updateUserProfile, updateUserPassword, forgotPassword, resetPassword
+} from '../controllers/user.controller.js';
 
 const router = Router();
 
@@ -11,6 +14,7 @@ router.route('/').get(getAllUserProfile);
 router.route('/update/:id').put(updateUserProfile);
 router.route('/update-password/:id').put(updateUserPassword);
 router.route('/forgot-password').post(forgotPassword);
+router.route('/reset-password/:token').post(resetPassword);
 
 
 export default router;

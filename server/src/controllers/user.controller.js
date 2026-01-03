@@ -1,3 +1,5 @@
+import crypto from "crypto";
+import bcrypt from "bcrypt";
 import asyncHandler from "../middlewares/asyncHandler.js";
 import AppError from "../utils/AppError.js";
 import { successResponse } from "../utils/apiResponse.js";
@@ -283,6 +285,9 @@ export const resetPassword = asyncHandler(async (req, res) => {
             throw new AppError("New password and confirm password do not match", 400);
         }
         const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+        if (!hashedToken) {
+            throw new AppError("Invalid reset token", 400);
+        }
         const user = await User.findOne({
             passwordResetToken: hashedToken,
             passwordResetExpires: { $gt: Date.now() },
