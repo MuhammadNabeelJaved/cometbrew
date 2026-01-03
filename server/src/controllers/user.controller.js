@@ -21,21 +21,21 @@ export const registerUser = asyncHandler(async (req, res) => {
             throw new AppError("User already exists", 409);
         }
 
-        const user = await User.create({ name, email, password });
+        const createdUser = await User.create({ name, email, password });
 
-        if (!user) {
+        if (!createdUser) {
             throw new AppError("User registration failed", 500);
         }
 
         // Email verification logic can be added here
 
-        const code = await user.genrateVerificationCode();
+        const code = await createdUser.genrateVerificationCode();
         console.log("Verification code:", code);
-        await user.save();
+        await createdUser.save();
 
         // Generate JWT tokens
-        const accessToken = await user.genrateAccessToken();
-        const refreshToken = await user.genrateRefreshToken();
+        const accessToken = await createdUser.genrateAccessToken();
+        const refreshToken = await createdUser.genrateRefreshToken();
         // Set tokens in HTTP-only cookies
 
         res.cookie("accessToken", accessToken, {
@@ -51,6 +51,9 @@ export const registerUser = asyncHandler(async (req, res) => {
             sameSite: "Strict",
             maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
         });
+
+        const user = createdUser.toObject();
+        delete user.password; // Remove password from the response
 
         successResponse(res, "User registered successfully", user, 201);
     } catch (error) {

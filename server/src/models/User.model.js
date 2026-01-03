@@ -31,7 +31,7 @@ const userSchema = new mongoose.Schema(
             type: String,
             required: [true, "Password is required"],
             minlength: [8, "Password must be at least 8 characters"],
-            maxlength: [20, "Password cannot exceed 20 characters"],
+            // maxlength: [20, "Password cannot exceed 20 characters"],
             select: false, // 🔐 never return password
         },
 
@@ -107,20 +107,21 @@ const userSchema = new mongoose.Schema(
     }
 );
 
-userSchema.pre("save", async function () {
-    if (!this.isModified("password")){
-        // return next();
-    };
+userSchema.pre("save", async function (next) {
+    if (!this.isModified("password")) {
+        return next();
+    }
 
     this.password = await bcrypt.hash(this.password, 10);
-    // next();
+    next();
 });
+
 
 
 userSchema.methods.genrateVerificationCode = async function () {
     const code = Math.floor(100000 + Math.random() * 900000).toString()
-    this.verificationCode = code
-    this.verificationCodeExpires = Date.now() + 1000 * 60 * 10 // 10 minutes
+    this.emailVerificationToken = code
+    this.emailVerificationExpires = Date.now() + 1000 * 60 * 10 // 10 minutes
     await this.save()
     return code
 }
