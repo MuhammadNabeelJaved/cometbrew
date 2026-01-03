@@ -139,9 +139,13 @@ userSchema.methods.genrateVerificationCode = async function () {
 
 
 userSchema.methods.comparePassword = async function (enteredPassword) {
-    // if (!enteredPassword) return false;
+    if (!enteredPassword || !this.password) {
+        return false;
+    }
+
     return await bcrypt.compare(enteredPassword, this.password);
 };
+
 
 userSchema.methods.forgetPasswordToken = async function () {
     const resetToken = crypto.randomBytes(20).toString("hex");
