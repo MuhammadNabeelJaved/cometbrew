@@ -4,6 +4,7 @@ import asyncHandler from "../middlewares/asyncHandler.js";
 import AppError from "../utils/AppError.js";
 import { successResponse } from "../utils/apiResponse.js";
 import User from "../models/User.model.js";
+import { uploadImage, deleteImage } from "../middlewares/Cloudinary.js";
 
 
 
@@ -23,7 +24,7 @@ const jwtTokens = async (user) => {
 // @desc    Register a new user
 export const registerUser = asyncHandler(async (req, res) => {
     try {
-        const { name, email, password } = req.body;
+        const { name, email, password, avatar } = req.body;
 
         console.log(name, email, password);
 
@@ -38,7 +39,20 @@ export const registerUser = asyncHandler(async (req, res) => {
             throw new AppError("User already exists", 409);
         }
 
-        const createdUser = await User.create({ name, email, password });
+        // Upload avatar logic can be added here
+
+        let avatarUrl;
+        if (avatar) {
+            avatarUrl = await uploadImage(avatar);
+        }
+
+        if (!avatarUrl) {
+            throw new AppError("Avatar upload failed", 500);
+        }
+
+        console.log("Avatar URL:", avatarUrl);
+
+        const createdUser = await User.create({ name, email, password, avatarUrl: avatarUrl?.secure_url || avatarUrl });
 
         if (!createdUser) {
             throw new AppError("User registration failed", 500);
