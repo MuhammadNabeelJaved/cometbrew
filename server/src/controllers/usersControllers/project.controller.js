@@ -64,12 +64,18 @@ export const createProject = asyncHandler(async (req, res) => {
             projectType,
             budgetRange,
             projectDetails,
-            attachments: attachments,
+            attachments,
+            status: 'pending',
+            progress: 0,
+            paidAmount: 0
         });
 
         if (!project) {
             throw new AppError("Project creation failed", 500);
         }
+
+        // Populate user info
+        await project.populate('requestedBy', 'name email');
 
         // Also send project creation email to user (optional)
 
@@ -77,5 +83,75 @@ export const createProject = asyncHandler(async (req, res) => {
     } catch (error) {
         console.error("Error in createProject:", error);
         throw new AppError(`Failed to create project: ${error.message}`, 500);
+    }
+});
+
+
+// =========================
+// GET ALL PROJECTS
+// =========================
+export const getAllProjects = asyncHandler(async (req, res) => {
+    try {
+        const {
+            status,
+            projectType,
+            paymentStatus,
+            isArchived,
+            search,
+            page = 1,
+            limit = 10,
+            sortBy = 'createdAt',
+            order = 'desc'
+        } = req.query;
+
+        // Build filter
+        const filter = {};
+
+        if (status) filter.status = status;
+        if (projectType) filter.projectType = projectType;
+        if (paymentStatus) filter.paymentStatus = paymentStatus;
+        if (isArchived !== undefined) filter.isArchived = isArchived === 'true';
+
+        // Text search
+        if (search) {
+            filter.$text = { $search: search };
+        }
+
+        // For regular users, show only their projects
+        if (req?.user?.role !== 'admin') {
+            filter.requestedBy = req?.user?.id;
+        }
+
+        // Pagination
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        const sortOrder = order === 'desc' ? -1 : 1;
+
+        // Execute query
+        const [projects, total] = await Promise.all([
+            Project.find(filter)
+                .populate('requestedBy', 'name email')
+                .sort({ [sortBy]: sortOrder })
+                .skip(skip)
+                .limit(parseInt(limit))
+                .lean(),
+            Project.countDocuments(filter)
+        ]);
+
+        if (!projects) {
+            throw new AppError("Failed to fetch projects", 500);
+        }
+
+        successResponse(res, "Projects fetched successfully", {
+            projects,
+            pagination: {
+                total,
+                page: parseInt(page),
+                pages: Math.ceil(total / parseInt(limit)),
+                limit: parseInt(limit)
+            }
+        });
+    } catch (error) {
+        console.error("Error in getAllProjects:", error);
+        throw new AppError(`Failed to fetch projects: ${error.message}`, 500);
     }
 });
