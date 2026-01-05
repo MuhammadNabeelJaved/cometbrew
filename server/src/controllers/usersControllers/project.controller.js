@@ -3,6 +3,7 @@ import asyncHandler from "../../middlewares/asyncHandler.js";
 import Project from "../../models/usersModels/Project.model.js";
 import User from "../../models/usersModels/User.model.js";
 import { successResponse } from "../../utils/apiResponse.js";
+import { uploadImage, deleteImage } from "../../middlewares/Cloudinary.js";
 
 
 // =========================
@@ -23,7 +24,21 @@ export const createProject = asyncHandler(async (req, res) => {
         }
 
         // Upload file handling can be added here if needed
-        
+
+        let uploadedFileUrl = null;
+
+        if (file) {
+            // Upload file on cloudinary or any other service
+            console.log("File uploaded at:", file);
+
+            const uploadResult = await uploadImage(file, "projects");
+            if (!uploadResult || !uploadResult.secure_url) {
+                throw new AppError("File upload failed", 500);
+            }
+            uploadedFileUrl = uploadResult.secure_url;
+
+        }
+
 
 
         const project = await Project.create({
