@@ -47,8 +47,9 @@ export const registerUser = asyncHandler(async (req, res) => {
 
         let avatarUrl;
         if (avatar) {
-            avatarUrl = await uploadImage(avatar);
+            avatarUrl = await uploadImage(avatar, "avatars"); // Creates "user-avatars" folder
         }
+
 
         if (!avatarUrl) {
             throw new AppError("Avatar upload failed", 500);
@@ -309,7 +310,7 @@ export const updateUserProfile = asyncHandler(async (req, res) => {
             await deleteImage(user.photo);
         }
 
-        const avatarUpload = await uploadImage(avatar);
+        const avatarUpload = await uploadImage(avatar, "avatars"); // Creates "user-avatars" folder
         updates.photo = avatarUpload.secure_url;
     }
 
