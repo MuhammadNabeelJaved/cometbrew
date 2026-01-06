@@ -1,7 +1,7 @@
 import express from "express";
-import { createReview, getAllReviews, getAllReviewsAdmin, getReviewById, getReviewsByProject, getMyReviews, updateReview, updateReviewStatus, deleteReview, getReviewsByRating, getReviewStatistics, bulkDeleteReviews } from "../../controllers/usersControllers/reviews.controller";
+import { createReview, getAllReviews, getAllReviewsAdmin, getReviewById, getReviewsByProject, getMyReviews, updateReview, updateReviewStatus, deleteReview, getReviewsByRating, getReviewStatistics, bulkDeleteReviews } from "../../controllers/usersControllers/reviews.controller.js";
 
-import { userAuthenticated, authorizeRoles } from "../../middlewares/Auth";
+import { userAuthenticated, authorizeRoles } from "../../middlewares/Auth.js";
 
 const router = express.Router();
 
