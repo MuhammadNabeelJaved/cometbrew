@@ -7,6 +7,8 @@ const ServiceSchema = new mongoose.Schema(
             type: String,
             required: true,
             trim: true,
+            minlength: [3, "Title must be at least 3 characters"],
+            maxlength: [50, "Title cannot exceed 100 characters"],
         },
         slug: {
             type: String,
@@ -17,10 +19,14 @@ const ServiceSchema = new mongoose.Schema(
         subtitle: {
             type: String,
             trim: true,
+
         },
         description: {
             type: String,
             required: true,
+            trim: true,
+            minlength: [10, "Description must be at least 10 characters"],
+            maxlength: [5000, "Description cannot exceed 5000 characters"],
         },
 
         // Hero Section
