@@ -5,7 +5,7 @@ import { userAuthenticated, authorizeRoles } from "../../middlewares/Auth.js";
 
 const router = express.Router();
 
-router.route("/").post(userAuthenticated, authorizeRoles("user"), createReview);
+router.route("/").post(userAuthenticated, createReview);
 router.route("/").get(userAuthenticated, authorizeRoles("admin"), getAllReviewsAdmin);
 router.route("/all").get(userAuthenticated, authorizeRoles("admin"), getAllReviews);
 router.route("/statistics").get(userAuthenticated, authorizeRoles("admin"), getReviewStatistics);
