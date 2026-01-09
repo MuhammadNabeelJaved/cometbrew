@@ -34,14 +34,9 @@ const teamMemberSchema = new mongoose.Schema({
     },
 
     email: {
-        type: String,
-        required: [true, 'Email is required'],
-        unique: true,
-        lowercase: true,
-        trim: true,
-        validate: [validator.isEmail, 'Please provide a valid email'],
-        index: true,
-        match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email address']
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
     },
 
     phone: {
@@ -99,15 +94,20 @@ const teamMemberSchema = new mongoose.Schema({
     },
     Status: {
         type: String,
-        enum: ['Active', 'On Leave', 'Inactive'],
+        enum: ['Active', 'On Leave', 'Inactive', 'Recently Joined'],
         default: 'Active'
+    },
+    memberRole: {
+        type: String,
+        enum: ['Member', 'Team Lead', 'Manager', 'Director', 'VP', 'C-Level', 'Intern', 'Other'],
+        default: 'Member'
     },
     role: {
         type: String,
-        enum: ['Member', 'Team Lead', 'Manager', 'Director', 'VP', 'C-Level'],
-        default: 'Member'
-    }
-
+        enum: ["admin", "team", "user"],
+        default: "user",
+        index: true,
+    },
 }, {
     timestamps: true,
     toJSON: { virtuals: true },
