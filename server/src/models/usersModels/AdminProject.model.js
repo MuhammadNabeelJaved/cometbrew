@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 // Project Schema
 const projectSchema = new mongoose.Schema({
@@ -144,9 +144,13 @@ const projectSchema = new mongoose.Schema({
         default: Date.now
     },
 
-    endDate: Date,
+    endDate: {
+        type: Date
+    },
 
-    deadline: Date,
+    deadline: {
+        type: Date
+    },
 
     priority: {
         type: String,
@@ -178,8 +182,6 @@ const projectSchema = new mongoose.Schema({
         default: false,
         index: true
     },
-
-    archivedAt: Date,
 
     completionPercentage: {
         type: Number,
