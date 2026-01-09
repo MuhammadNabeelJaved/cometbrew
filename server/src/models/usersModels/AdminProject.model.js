@@ -311,7 +311,6 @@ projectSchema.statics.getProjectStats = async function (userId) {
 };
 
 // Model
-const Project = mongoose.models.Project || mongoose.model('Project', projectSchema);
+const adminProject = mongoose.models.Project || mongoose.model('Project', projectSchema);
 
-export default Project;
-
+export default adminProject;
