@@ -179,19 +179,19 @@ export const loginUser = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-        throw new AppError("Email aur password required hain", 400);
+        throw new AppError("Email and password are required", 400);
     }
 
     const user = await User.findOne({ email }).select("+password");
 
     if (!user) {
-        throw new AppError("Invalid email ya password", 401);
+        throw new AppError("Invalid email or password", 401);
     }
 
     const isPasswordValid = await user.comparePassword(password);
 
     if (!isPasswordValid) {
-        throw new AppError("Invalid email ya password", 401);
+        throw new AppError("Invalid password", 401);
     }
 
     const { accessToken, refreshToken } = await jwtTokens(user);
