@@ -41,3 +41,26 @@ export const getTeamMembersByDepartment = asyncHandler(async (req, res, next) =>
         throw new AppError(`Failed to retrieve team members in department: ${error.message}`, 500);
     }
 });
+
+
+// Get team member by ID
+export const getTeamMemberById = asyncHandler(async (req, res, next) => {
+    try {
+        const { id } = req.params || req.query || req.body || {};
+
+        if (!id) {
+            throw new AppError("Team member ID is required", 400);
+        }
+
+        const teamMember = await Team.findById(id);
+
+        if (!teamMember) {
+            throw new AppError(`No team member found with ID: ${id}`, 404);
+        }
+
+        return successResponse(res, 200, `Team member with ID: ${id} retrieved successfully`, teamMember);
+    } catch (error) {
+        console.error("Error in getTeamMemberById:", error);
+        throw new AppError(`Failed to retrieve team member: ${error.message}`, 500);
+    }
+});
