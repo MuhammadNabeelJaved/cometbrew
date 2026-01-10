@@ -64,3 +64,27 @@ export const getTeamMemberById = asyncHandler(async (req, res, next) => {
         throw new AppError(`Failed to retrieve team member: ${error.message}`, 500);
     }
 });
+
+
+// Get team members by role
+
+export const getTeamMembersByRole = asyncHandler(async (req, res, next) => {
+    try {
+        const { role } = req.params;
+
+        if (!role || !validator.isAlpha(role.replace(/\s+/g, ''))) {
+            throw new AppError("Invalid role parameter", 400);
+        }
+
+        const teamMembers = await Team.find({ role: role, isActive: true });
+
+        if (!teamMembers || teamMembers.length === 0) {
+            throw new AppError(`No team members found with role: ${role}`, 404);
+        }
+
+        return successResponse(res, 200, `Team members with role: ${role} retrieved successfully`, teamMembers);
+    } catch (error) {
+        console.error("Error in getTeamMembersByRole:", error);
+        throw new AppError(`Failed to retrieve team members with role: ${error.message}`, 500);
+    }
+});
