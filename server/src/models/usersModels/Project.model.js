@@ -152,7 +152,7 @@ projectRequestSchema.virtual("dueAmount").get(function () {
 // =========================
 // PRE-SAVE: PAYMENT STATUS AUTO UPDATE
 // =========================
-projectRequestSchema.pre("save", function (next) {
+projectRequestSchema.pre("save", function () {
   if (!this.totalCost || this.paidAmount === 0) {
     this.paymentStatus = "unpaid";
   } else if (this.paidAmount < this.totalCost) {
@@ -160,7 +160,6 @@ projectRequestSchema.pre("save", function (next) {
   } else {
     this.paymentStatus = "paid";
   }
-  next();
 });
 
 // =========================

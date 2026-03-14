@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(nslookup:*)",
+      "Bash(node:*)",
+      "Bash(curl:*)"
     ]
   }
 }

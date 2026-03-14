@@ -222,20 +222,13 @@ projectSchema.virtual('durationInDays').get(function () {
 });
 
 // Pre-save middleware
-projectSchema.pre('save', function (next) {
+projectSchema.pre('save', function () {
     // Update completion percentage based on status
     if (this.status === 'Completed') {
         this.completionPercentage = 100;
     } else if (this.status === 'Draft') {
         this.completionPercentage = 0;
     }
-
-    // Set archived date if archiving
-    if (this.isArchived && !this.archivedAt) {
-        this.archivedAt = new Date();
-    }
-
-    next();
 });
 
 // Instance methods

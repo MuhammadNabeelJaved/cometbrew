@@ -263,7 +263,7 @@ jobPostingSchema.methods.getPublicData = function () {
 };
 
 // Pre-save Middleware
-jobPostingSchema.pre('save', function (next) {
+jobPostingSchema.pre('save', function () {
     // Set remoteOnly flag based on workMode
     if (this.workMode === 'Remote') {
         this.remoteOnly = true;
@@ -271,10 +271,8 @@ jobPostingSchema.pre('save', function (next) {
 
     // Validate salary range
     if (this.salaryRange && this.salaryRange.min > this.salaryRange.max) {
-        next(new Error('Minimum salary cannot be greater than maximum salary'));
+        throw new Error('Minimum salary cannot be greater than maximum salary');
     }
-
-    next();
 });
 
 // Pre-update Middleware
