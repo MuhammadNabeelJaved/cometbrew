@@ -89,6 +89,7 @@ export const createProject = asyncHandler(async (req, res) => {
         successResponse(res, "Project created successfully", project, 201);
     } catch (error) {
         console.error("Error in createProject:", error);
+        if (error.isOperational) throw error;
         throw new AppError(`Failed to create project: ${error.message}`, 500);
     }
 });
@@ -159,6 +160,7 @@ export const getAllProjects = asyncHandler(async (req, res) => {
         });
     } catch (error) {
         console.error("Error in getAllProjects:", error);
+        if (error.isOperational) throw error;
         throw new AppError(`Failed to fetch projects: ${error.message}`, 500);
     }
 });
@@ -190,6 +192,7 @@ export const getProjectById = asyncHandler(async (req, res) => {
         successResponse(res, "Project fetched successfully", project);
     } catch (error) {
         console.error("Error in getProjectById:", error);
+        if (error.isOperational) throw error;
         throw new AppError(`Failed to fetch project: ${error.message}`, 500);
     }
 });
@@ -270,6 +273,7 @@ export const updateProject = asyncHandler(async (req, res) => {
         successResponse(res, "Project updated successfully", project);
     } catch (error) {
         console.error("Error in updateProject:", error);
+        if (error.isOperational) throw error;
         throw new AppError(`Failed to update project: ${error.message}`, 500);
     }
 });
@@ -316,6 +320,7 @@ export const deleteAttachment = asyncHandler(async (req, res) => {
         successResponse(res, "Attachment deleted successfully", project);
     } catch (error) {
         console.error("Error in deleteAttachment:", error);
+        if (error.isOperational) throw error;
         throw new AppError(`Failed to delete attachment: ${error.message}`, 500);
     }
 });
@@ -350,6 +355,7 @@ export const updateProjectStatus = asyncHandler(async (req, res) => {
         successResponse(res, "Project status updated successfully", project);
     } catch (error) {
         console.error("Error in updateProjectStatus:", error);
+        if (error.isOperational) throw error;
         throw new AppError(`Failed to update project status: ${error.message}`, 500);
     }
 });
@@ -393,6 +399,7 @@ export const deleteProject = asyncHandler(async (req, res) => {
         successResponse(res, "Project and all attachments deleted successfully", null);
     } catch (error) {
         console.error("Error in deleteProject:", error);
+        if (error.isOperational) throw error;
         throw new AppError(`Failed to delete project: ${error.message}`, 500);
     }
 });
@@ -448,6 +455,7 @@ export const getProjectStats = asyncHandler(async (req, res) => {
         });
     } catch (error) {
         console.error("Error in getProjectStats:", error);
+        if (error.isOperational) throw error;
         throw new AppError(`Failed to fetch project statistics: ${error.message}`, 500);
     }
 });

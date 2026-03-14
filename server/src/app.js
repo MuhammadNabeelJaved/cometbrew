@@ -7,6 +7,7 @@ import bodyParser from "body-parser";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import errorHandler from "./middlewares/errorHandler.js";
+import notFound from "./middlewares/notFound.js";
 
 
 dotenv.config();
@@ -58,11 +59,8 @@ app.use("/api/v1/homepage", homePageRoutes);
 app.use("/api/v1/services", servicesRoutes);
 app.use("/api/v1/jobs", jobsRoutes);
 app.use("/api/v1/admin/projects", adminProjectRoutes);
-// app.use(ApiError)
-
-
-// 404
-// app.use(notFound);
+// 404 handler
+app.use(notFound);
 
 // Global Error
 app.use(errorHandler);

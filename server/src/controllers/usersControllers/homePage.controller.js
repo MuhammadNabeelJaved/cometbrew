@@ -16,6 +16,7 @@ export const getHomePage = asyncHandler(async (req, res) => {
         successResponse(res, "Home page content retrieved successfully", homePageContent);
     } catch (error) {
         console.error("Error retrieving home page content:", error.message);
+        if (error.isOperational) throw error;
         throw new AppError(`Failed to retrieve home page content: ${error.message}`, 500);
     }
 });
@@ -62,6 +63,7 @@ export const createHomePage = asyncHandler(async (req, res) => {
         );
     } catch (error) {
         console.error("Error creating home page content:", error.message);
+        if (error.isOperational) throw error;
         throw new AppError(`Failed to create home page content: ${error.message}`, 500);
     }
 });
@@ -108,6 +110,7 @@ export const updateHomePage = asyncHandler(async (req, res) => {
         );
     } catch (error) {
         console.error("Error updating home page content:", error.message);
+        if (error.isOperational) throw error;
         throw new AppError(`Failed to update home page content: ${error.message}`, 500);
     }
 });
@@ -123,6 +126,7 @@ export const deleteHomePage = asyncHandler(async (req, res) => {
         successResponse(res, "Home page content deleted successfully", null, 200);
     } catch (error) {
         console.error("Error deleting home page content:", error.message);
+        if (error.isOperational) throw error;
         throw new AppError(`Failed to delete home page content: ${error.message}`, 500);
     }
 });
@@ -142,6 +146,7 @@ export const deleteSpecificField = asyncHandler(async (req, res) => {
         successResponse(res, `Field ${fieldName} deleted successfully`, homePage, 200);
     } catch (error) {
         console.error("Error deleting specific field from home page content:", error.message);
+        if (error.isOperational) throw error;
         throw new AppError(`Failed to delete specific field: ${error.message}`, 500);
     }
 });

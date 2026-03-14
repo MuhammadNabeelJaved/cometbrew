@@ -39,6 +39,7 @@ export const createContact = asyncHandler(async (req, res) => {
         successResponse(res, "Contact message sent successfully", contact, 201);
     } catch (error) {
         console.error("Error in createContact:", error);
+        if (error.isOperational) throw error;
         throw new AppError(`Failed to create contact: ${error.message}`, 500);
     }
 });
@@ -110,6 +111,7 @@ export const getAllContacts = asyncHandler(async (req, res) => {
         });
     } catch (error) {
         console.error("Error in getAllContacts:", error);
+        if (error.isOperational) throw error;
         throw new AppError(`Failed to retrieve contacts: ${error.message}`, 500);
     }
 });
@@ -134,6 +136,7 @@ export const getContactById = asyncHandler(async (req, res) => {
         successResponse(res, "Contact retrieved successfully", contact);
     } catch (error) {
         console.error("Error in getContactById:", error);
+        if (error.isOperational) throw error;
         throw new AppError(`Failed to retrieve contact: ${error.message}`, 500);
     }
 });
@@ -173,6 +176,7 @@ export const updateContact = asyncHandler(async (req, res) => {
         successResponse(res, "Contact updated successfully", contact);
     } catch (error) {
         console.error("Error in updateContact:", error);
+        if (error.isOperational) throw error;
         throw new AppError(`Failed to update contact: ${error.message}`, 500);
     }
 });
@@ -199,6 +203,7 @@ export const deleteContact = asyncHandler(async (req, res) => {
         successResponse(res, "Contact deleted successfully", null);
     } catch (error) {
         console.error("Error in deleteContact:", error);
+        if (error.isOperational) throw error;
         throw new AppError(`Failed to delete contact: ${error.message}`, 500);
     }
 });
@@ -225,6 +230,7 @@ export const deleteMultipleContacts = asyncHandler(async (req, res) => {
         });
     } catch (error) {
         console.error("Error in deleteMultipleContacts:", error);
+        if (error.isOperational) throw error;
         throw new AppError(`Failed to delete multiple contacts: ${error.message}`, 500);
     }
 });
@@ -285,6 +291,7 @@ export const getContactStats = asyncHandler(async (req, res) => {
         });
     } catch (error) {
         console.error("Error in getContactStats:", error);
+        if (error.isOperational) throw error;
         throw new AppError(`Failed to retrieve contact statistics: ${error.message}`, 500);
     }
 });
@@ -314,6 +321,7 @@ export const searchContactByEmail = asyncHandler(async (req, res) => {
         });
     } catch (error) {
         console.error("Error in searchContactByEmail:", error);
+        if (error.isOperational) throw error;
         throw new AppError(`Failed to search contacts by email: ${error.message}`, 500);
     }
 });

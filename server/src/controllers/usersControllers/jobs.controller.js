@@ -58,6 +58,7 @@ export const createJob = asyncHandler(async (req, res) => {
         successResponse(res, "Job created successfully", job, 201);
     } catch (error) {
         console.error("Error in createJob:", error);
+        if (error.isOperational) throw error;
         throw new AppError(`Failed to create job: ${error.message}`, 500);
     }
 });
@@ -115,6 +116,7 @@ export const getAllJobs = asyncHandler(async (req, res) => {
         });
     } catch (error) {
         console.error("Error in getAllJobs:", error);
+        if (error.isOperational) throw error;
         throw new AppError(`Failed to fetch jobs: ${error.message}`, 500);
     }
 });
@@ -129,6 +131,7 @@ export const getActiveJobs = asyncHandler(async (req, res) => {
         successResponse(res, "Active jobs fetched successfully", jobs);
     } catch (error) {
         console.error("Error in getActiveJobs:", error);
+        if (error.isOperational) throw error;
         throw new AppError(`Failed to fetch active jobs: ${error.message}`, 500);
     }
 });
@@ -156,6 +159,7 @@ export const getJobById = asyncHandler(async (req, res) => {
         successResponse(res, "Job fetched successfully", job);
     } catch (error) {
         console.error("Error in getJobById:", error);
+        if (error.isOperational) throw error;
         throw new AppError(`Failed to fetch job: ${error.message}`, 500);
     }
 });
@@ -189,6 +193,7 @@ export const updateJob = asyncHandler(async (req, res) => {
         successResponse(res, "Job updated successfully", job);
     } catch (error) {
         console.error("Error in updateJob:", error);
+        if (error.isOperational) throw error;
         throw new AppError(`Failed to update job: ${error.message}`, 500);
     }
 });
@@ -214,6 +219,7 @@ export const deleteJob = asyncHandler(async (req, res) => {
         successResponse(res, "Job deleted successfully", null);
     } catch (error) {
         console.error("Error in deleteJob:", error);
+        if (error.isOperational) throw error;
         throw new AppError(`Failed to delete job: ${error.message}`, 500);
     }
 });
@@ -248,6 +254,7 @@ export const updateJobStatus = asyncHandler(async (req, res) => {
         successResponse(res, "Job status updated successfully", job);
     } catch (error) {
         console.error("Error in updateJobStatus:", error);
+        if (error.isOperational) throw error;
         throw new AppError(`Failed to update job status: ${error.message}`, 500);
     }
 });
@@ -263,6 +270,7 @@ export const getFeaturedJobs = asyncHandler(async (req, res) => {
         successResponse(res, "Featured jobs fetched successfully", jobs);
     } catch (error) {
         console.error("Error in getFeaturedJobs:", error);
+        if (error.isOperational) throw error;
         throw new AppError(`Failed to fetch featured jobs: ${error.message}`, 500);
     }
 });

@@ -61,6 +61,7 @@ export const createService = asyncHandler(async (req, res) => {
         successResponse(res, "Service created successfully", service, 201);
     } catch (error) {
         console.error("Error creating service:", error);
+        if (error.isOperational) throw error;
         throw new AppError(`Failed to create service: ${error.message}`, 500);
 
     }
@@ -81,6 +82,7 @@ export const getAllServices = asyncHandler(async (req, res) => {
         successResponse(res, "Services retrieved successfully", services);
     } catch (error) {
         console.error("Error in getAllServices:", error);
+        if (error.isOperational) throw error;
         throw new AppError(`Failed to retrieve services: ${error.message}`, 500);
     }
 });
@@ -106,6 +108,7 @@ export const getServiceBySlug = asyncHandler(async (req, res) => {
         successResponse(res, "Service retrieved successfully", service);
     } catch (error) {
         console.error("Error in getServiceBySlug:", error);
+        if (error.isOperational) throw error;
         throw new AppError(`Failed to retrieve service: ${error.message}`, 500);
     }
 });
@@ -131,6 +134,7 @@ export const getServiceById = asyncHandler(async (req, res) => {
         successResponse(res, "Service retrieved successfully", service);
     } catch (error) {
         console.error("Error in getServiceById:", error);
+        if (error.isOperational) throw error;
         throw new AppError(`Failed to retrieve service: ${error.message}`, 500);
     }
 });
@@ -157,6 +161,7 @@ export const deleteService = asyncHandler(async (req, res) => {
         successResponse(res, "Service deleted successfully", null);
     } catch (error) {
         console.error("Error in deleteService:", error);
+        if (error.isOperational) throw error;
         throw new AppError(`Failed to delete service: ${error.message}`, 500);
     }
 });
@@ -187,6 +192,7 @@ export const updateService = asyncHandler(async (req, res) => {
         successResponse(res, "Service updated successfully", updatedService);
     } catch (error) {
         console.error("Error in updateService:", error);
+        if (error.isOperational) throw error;
         throw new AppError(`Failed to update service: ${error.message}`, 500);
     }
 });
