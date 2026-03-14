@@ -60,6 +60,11 @@ const homePageSchema = new mongoose.Schema(
         ],
 
 
+        isActive: {
+            type: Boolean,
+            default: true,
+        },
+
         lastUpdatedBy: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",

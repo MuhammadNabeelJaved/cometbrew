@@ -119,7 +119,7 @@ export const deleteHomePage = asyncHandler(async (req, res) => {
         if (!homePage) {
             throw new AppError("Home page content not found", 404);
         }
-        await homePage.remove();
+        await homePage.deleteOne();
         successResponse(res, "Home page content deleted successfully", null, 200);
     } catch (error) {
         console.error("Error deleting home page content:", error.message);

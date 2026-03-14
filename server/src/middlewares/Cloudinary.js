@@ -11,31 +11,25 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-console.log("Cloudinary Configured:", {
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY ? '***' : null,
-    api_secret: process.env.CLOUDINARY_API_SECRET ? '***' : null,
-});
 
 const uploadImage = async (image, folderName = "avatars") => {
     try {
         if (!image) {
-            throw new AppError(400, "Image is required")
+            throw new AppError("Image is required", 400)
         }
 
-        console.log("Uploading image:", image, "to folder:", folderName)
         const result = await cloudinary.uploader.upload(image, {
             folder: folderName
         })
 
         if (!result) {
-            throw new AppError(500, "Response from Cloudinary is empty. Failed to upload image to Cloudinary")
+            throw new AppError("Response from Cloudinary is empty. Failed to upload image to Cloudinary", 500)
         }
-        fs.unlinkSync(image)
+        if (fs.existsSync(image)) fs.unlinkSync(image)
         return result
     } catch (error) {
-        fs.unlinkSync(image)
-        throw new AppError(500, "Failed to upload image to Cloudinary")
+        if (fs.existsSync(image)) fs.unlinkSync(image)
+        throw new AppError("Failed to upload image to Cloudinary", 500)
     }
 }
 

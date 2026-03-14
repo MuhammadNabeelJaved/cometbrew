@@ -213,7 +213,7 @@ export const updateProject = asyncHandler(async (req, res) => {
             status
         } = req.body;
 
-        const files = req?.files?.path;
+        const files = req?.files;
 
         // Find project
         const project = await Project.findById(id);
@@ -378,14 +378,13 @@ export const deleteProject = asyncHandler(async (req, res) => {
 
         // Delete all attachments from cloudinary
         if (project.attachments && project.attachments.length > 0) {
-
-            project?.attachments.forEach(attachment => {
-                const deletedImages = deleteImage(attachment?.fileUrl, "projects");
-
-                if (!deletedImages) {
+            for (const attachment of project.attachments) {
+                try {
+                    await deleteImage(attachment?.fileUrl, "projects");
+                } catch (err) {
                     console.error("Failed to delete attachment from Cloudinary:", attachment?.fileUrl);
                 }
-            });
+            }
         }
 
         // Delete the project

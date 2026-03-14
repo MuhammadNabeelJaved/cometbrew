@@ -58,7 +58,7 @@ export const createService = asyncHandler(async (req, res) => {
             throw new AppError("Failed to create service", 500);
         }
 
-        successResponse(res, 201, "Service created successfully", service);
+        successResponse(res, "Service created successfully", service, 201);
     } catch (error) {
         console.error("Error creating service:", error);
         throw new AppError(`Failed to create service: ${error.message}`, 500);

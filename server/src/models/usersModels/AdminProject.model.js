@@ -301,7 +301,7 @@ projectSchema.statics.findByCreator = function (userId) {
 
 projectSchema.statics.getProjectStats = async function (userId) {
     return this.aggregate([
-        { $match: { createdBy: mongoose.Types.ObjectId(userId), isArchived: false } },
+        { $match: { createdBy: new mongoose.Types.ObjectId(userId), isArchived: false } },
         {
             $group: {
                 _id: '$status',
@@ -313,6 +313,6 @@ projectSchema.statics.getProjectStats = async function (userId) {
 };
 
 // Model
-const adminProject = mongoose.models.Project || mongoose.model('Project', projectSchema);
+const adminProject = mongoose.models.AdminProject || mongoose.model('AdminProject', projectSchema);
 
 export default adminProject;

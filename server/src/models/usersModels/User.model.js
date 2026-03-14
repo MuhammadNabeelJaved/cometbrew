@@ -198,16 +198,16 @@ const userSchema = new mongoose.Schema(
     }
 );
 
-userSchema.pre("save", async function () {
+userSchema.pre("save", async function (next) {
     if (!this.isModified("password")) {
-        return;
+        return next();
     }
 
     try {
         this.password = await bcrypt.hash(this.password, 10);
-        // next();
+        next();
     } catch (err) {
-        // next(err);
+        next(err);
     }
 });
 
@@ -229,11 +229,11 @@ userSchema.statics.getByDepartment = function (department) {
 };
 
 
-userSchema.methods.genrateVerificationCode = async function () {
+userSchema.methods.generateVerificationCode = async function () {
     const code = Math.floor(100000 + Math.random() * 900000).toString()
     this.emailVerificationToken = code
     this.emailVerificationExpires = Date.now() + 1000 * 60 * 10 // 10 minutes
-    await this.save()
+    await this.save({ validateBeforeSave: false })
     return code
 }
 
@@ -252,24 +252,24 @@ userSchema.methods.forgetPasswordToken = async function () {
     const resetToken = crypto.randomBytes(20).toString("hex");
     this.passwordResetToken = crypto.createHash("sha256").update(resetToken).digest("hex");
     this.passwordResetExpires = Date.now() + 1000 * 60 * 10; // 10 minutes
-    // await this.save();
+    await this.save({ validateBeforeSave: false });
     return resetToken;
 }
 
 
 userSchema.methods.isVerificationCodeCorrect = async function (code) {
-    return this.verificationCode === code && this.verificationCodeExpires > Date.now()
+    return this.emailVerificationToken === code && this.emailVerificationExpires > Date.now()
 }
 
 userSchema.methods.isVerificationCodeExpired = async function () {
-    return this.verificationCodeExpires < Date.now()
+    return this.emailVerificationExpires < Date.now()
 }
 
-userSchema.methods.genrateAccessToken = async function () {
+userSchema.methods.generateAccessToken = function () {
     return jwt.sign({ id: this._id }, process.env.JWT_ACCESS_SECRET, { expiresIn: process.env.JWT_ACCESS_SECRET_EXPIRES_IN })
 }
 
-userSchema.methods.genrateRefreshToken = async function () {
+userSchema.methods.generateRefreshToken = function () {
     return jwt.sign({ id: this._id }, process.env.JWT_REFRESH_SECRET, { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN })
 }
 

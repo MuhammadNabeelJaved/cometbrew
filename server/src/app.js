@@ -47,6 +47,8 @@ import contactRoutes from "./routes/userRoutes/contact.route.js"
 import reviewRoutes from "./routes/userRoutes/reviews.route.js";
 import homePageRoutes from "./routes/userRoutes/homePage.route.js";
 import servicesRoutes from "./routes/userRoutes/services.route.js";
+import jobsRoutes from "./routes/userRoutes/jobs.route.js";
+import adminProjectRoutes from "./routes/userRoutes/adminProject.route.js";
 
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/projects", projectRoutes);
@@ -54,6 +56,8 @@ app.use("/api/v1/contacts", contactRoutes);
 app.use("/api/v1/reviews", reviewRoutes);
 app.use("/api/v1/homepage", homePageRoutes);
 app.use("/api/v1/services", servicesRoutes);
+app.use("/api/v1/jobs", jobsRoutes);
+app.use("/api/v1/admin/projects", adminProjectRoutes);
 // app.use(ApiError)
 
 

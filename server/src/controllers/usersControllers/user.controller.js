@@ -16,8 +16,8 @@ const jwtTokens = async (user) => {
             throw new AppError("User not found", 404);
         }
 
-        const accessToken = await user.genrateAccessToken();
-        const refreshToken = await user.genrateRefreshToken();
+        const accessToken = user.generateAccessToken();
+        const refreshToken = user.generateRefreshToken();
         await user.save({ validateBeforeSave: false });
         return { accessToken, refreshToken };
     } catch (error) {
@@ -52,17 +52,16 @@ export const registerUser = asyncHandler(async (req, res) => {
 
         let avatarUrl;
         if (avatar) {
-            avatarUrl = await uploadImage(avatar, "avatars"); // Creates "user-avatars" folder
+            const uploaded = await uploadImage(avatar, "avatars");
+            avatarUrl = uploaded?.secure_url;
         }
 
-
-        if (!avatarUrl) {
-            throw new AppError("Avatar upload failed", 500);
-        }
-
-        console.log("Avatar URL:", avatarUrl);
-
-        const createdUser = await User.create({ name, email, password, photo: avatarUrl?.secure_url || avatarUrl });
+        const createdUser = await User.create({
+            name,
+            email,
+            password,
+            ...(avatarUrl && { photo: avatarUrl }),
+        });
 
         if (!createdUser) {
             throw new AppError("User registration failed", 500);
@@ -70,7 +69,7 @@ export const registerUser = asyncHandler(async (req, res) => {
 
         // Email verification logic can be added here
 
-        const code = await createdUser.genrateVerificationCode();
+        const code = await createdUser.generateVerificationCode();
         console.log("Verification code:", code);
 
         // Send verification email
