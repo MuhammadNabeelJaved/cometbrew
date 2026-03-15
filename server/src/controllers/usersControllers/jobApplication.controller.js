@@ -1,3 +1,21 @@
+/**
+ * JobApplication controller – handles job application submission and admin management.
+ *
+ * `submitApplication` is the only public endpoint; all others require admin auth.
+ * On submission:
+ *  1. Validates the target job exists and is Active
+ *  2. Rejects duplicate applications (same email + job)
+ *  3. Increments the job's `applicationsCount` counter
+ *
+ * Exported functions:
+ *  - submitApplication       POST   /api/v1/job-applications          (public)
+ *  - getAllApplications       GET    /api/v1/job-applications          (admin, paginated)
+ *  - getApplicationsByJob    GET    /api/v1/job-applications/job/:jobId (admin)
+ *  - getApplicationById      GET    /api/v1/job-applications/:id      (admin)
+ *  - updateApplicationStatus PATCH  /api/v1/job-applications/:id/status (admin)
+ *  - deleteApplication       DELETE /api/v1/job-applications/:id      (admin)
+ *  - getApplicationStats     GET    /api/v1/job-applications/stats    (admin)
+ */
 import asyncHandler from "../../middlewares/asyncHandler.js";
 import AppError from "../../utils/AppError.js";
 import { successResponse } from "../../utils/apiResponse.js";

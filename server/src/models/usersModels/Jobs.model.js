@@ -1,6 +1,21 @@
+/**
+ * Jobs model – job postings published by the agency.
+ *
+ * Key design decisions:
+ *  - `salaryRange` uses a sub-schema with a null guard in the `salaryDisplay`
+ *    virtual to prevent crashes when the job is partially populated (e.g. in
+ *    job-application endpoints that only select {jobTitle, department})
+ *  - Full-text index on `jobTitle` + `description` powers the search endpoint
+ *  - `applicationsCount` and `viewsCount` are incremented in-place via
+ *    instance methods to avoid race conditions
+ *  - `remoteOnly` is auto-set in the pre-save hook based on `workMode`
+ *
+ * Public endpoints: GET /api/v1/jobs, /active, /featured, /:id
+ * Admin endpoints:  POST, PUT, PATCH /status, DELETE
+ */
 import mongoose from 'mongoose';
 
-// Salary Range Sub-Schema
+// Salary Range Sub-Schema (no _id to keep the document lean)
 const salaryRangeSchema = new mongoose.Schema({
     min: {
         type: Number,
@@ -63,6 +78,7 @@ const jobPostingSchema = new mongoose.Schema({
         trim: true
     },
 
+    // Validated to ensure min <= max in the pre-save hook
     salaryRange: {
         type: salaryRangeSchema,
         required: [true, 'Salary range is required']
@@ -93,7 +109,7 @@ const jobPostingSchema = new mongoose.Schema({
 
     // Additional Details
     applicationDeadline: {
-        type: Date
+        type: Date // Optional; `isExpired` virtual checks this
     },
 
     positionsAvailable: {
@@ -102,6 +118,7 @@ const jobPostingSchema = new mongoose.Schema({
         min: 1
     },
 
+    // Status controls visibility; only "Active" jobs appear on public endpoints
     status: {
         type: String,
         enum: ['Draft', 'Active', 'Paused', 'Closed', 'Filled'],
@@ -114,6 +131,7 @@ const jobPostingSchema = new mongoose.Schema({
         required: true
     },
 
+    // Counters incremented atomically via instance methods
     applicationsCount: {
         type: Number,
         default: 0
@@ -126,9 +144,10 @@ const jobPostingSchema = new mongoose.Schema({
 
     featured: {
         type: Boolean,
-        default: false
+        default: false // Featured jobs appear at the top / in a highlighted section
     },
 
+    // Auto-set to true when workMode === "Remote" (see pre-save hook)
     remoteOnly: {
         type: Boolean,
         default: false
@@ -136,7 +155,7 @@ const jobPostingSchema = new mongoose.Schema({
 
     urgentHiring: {
         type: Boolean,
-        default: false
+        default: false // Displays an "Urgent" badge on the job card
     },
 
     requiredSkills: [{
@@ -155,26 +174,34 @@ const jobPostingSchema = new mongoose.Schema({
     toObject: { virtuals: true }
 });
 
-// Indexes
-jobPostingSchema.index({ jobTitle: 'text', description: 'text' });
+// ─── Indexes ─────────────────────────────────────────────────────────────────
+jobPostingSchema.index({ jobTitle: 'text', description: 'text' }); // Full-text search
 jobPostingSchema.index({ department: 1, status: 1 });
 jobPostingSchema.index({ experienceLevel: 1 });
 jobPostingSchema.index({ workMode: 1 });
 jobPostingSchema.index({ status: 1, createdAt: -1 });
 jobPostingSchema.index({ applicationDeadline: 1 });
 
-// Virtuals
+// ─── Virtuals ─────────────────────────────────────────────────────────────────
+
+/** True when the applicationDeadline has passed. */
 jobPostingSchema.virtual('isExpired').get(function () {
     if (!this.applicationDeadline) return false;
     return new Date() > this.applicationDeadline;
 });
 
+/** Number of days until the applicationDeadline (negative if past). */
 jobPostingSchema.virtual('daysRemaining').get(function () {
     if (!this.applicationDeadline) return null;
     const diff = this.applicationDeadline - new Date();
     return Math.ceil(diff / (1000 * 60 * 60 * 24));
 });
 
+/**
+ * Human-readable salary range string (e.g. "USD 50k - 80k").
+ * Returns null when salaryRange is not populated to avoid destructuring crashes
+ * in endpoints that partially populate this document.
+ */
 jobPostingSchema.virtual('salaryDisplay').get(function () {
     if (!this.salaryRange) return null;
     const { min, max, currency } = this.salaryRange;
@@ -185,7 +212,9 @@ jobPostingSchema.virtual('salaryDisplay').get(function () {
     return `${currency} ${formatNumber(min)} - ${formatNumber(max)}`;
 });
 
-// Static Methods
+// ─── Static Methods ───────────────────────────────────────────────────────────
+
+/** Returns all Active jobs that have not yet passed their deadline. */
 jobPostingSchema.statics.getActiveJobs = function () {
     return this.find({
         status: 'Active',
@@ -196,6 +225,7 @@ jobPostingSchema.statics.getActiveJobs = function () {
     }).sort({ featured: -1, createdAt: -1 });
 };
 
+/** Returns Active jobs for a specific department. */
 jobPostingSchema.statics.getJobsByDepartment = function (department) {
     return this.find({
         department: department,
@@ -203,6 +233,7 @@ jobPostingSchema.statics.getJobsByDepartment = function (department) {
     }).sort({ createdAt: -1 });
 };
 
+/** Full-text search across Active jobs. */
 jobPostingSchema.statics.searchJobs = function (query) {
     return this.find({
         $text: { $search: query },
@@ -210,6 +241,7 @@ jobPostingSchema.statics.searchJobs = function (query) {
     }).sort({ score: { $meta: 'textScore' } });
 };
 
+/** Returns the top `limit` featured Active jobs. */
 jobPostingSchema.statics.getFeaturedJobs = function (limit = 5) {
     return this.find({
         featured: true,
@@ -219,27 +251,33 @@ jobPostingSchema.statics.getFeaturedJobs = function (limit = 5) {
         .limit(limit);
 };
 
-// Instance Methods
+// ─── Instance Methods ─────────────────────────────────────────────────────────
+
+/** Increments `viewsCount` by 1 and saves the document. */
 jobPostingSchema.methods.incrementViews = function () {
     this.viewsCount += 1;
     return this.save();
 };
 
+/** Increments `applicationsCount` by 1 and saves the document. */
 jobPostingSchema.methods.incrementApplications = function () {
     this.applicationsCount += 1;
     return this.save();
 };
 
+/** Sets status to "Closed" and saves the document. */
 jobPostingSchema.methods.closePosition = function () {
     this.status = 'Closed';
     return this.save();
 };
 
+/** Sets status to "Filled" and saves the document. */
 jobPostingSchema.methods.markAsFilled = function () {
     this.status = 'Filled';
     return this.save();
 };
 
+/** Returns a public-safe subset of fields (excludes admin-only metadata). */
 jobPostingSchema.methods.getPublicData = function () {
     return {
         id: this._id,
@@ -263,7 +301,13 @@ jobPostingSchema.methods.getPublicData = function () {
     };
 };
 
-// Pre-save Middleware
+// ─── Hooks ────────────────────────────────────────────────────────────────────
+
+/**
+ * Pre-save hook:
+ *  1. Auto-sets `remoteOnly` to true when workMode is "Remote"
+ *  2. Validates that salaryRange.min <= salaryRange.max
+ */
 jobPostingSchema.pre('save', function () {
     // Set remoteOnly flag based on workMode
     if (this.workMode === 'Remote') {

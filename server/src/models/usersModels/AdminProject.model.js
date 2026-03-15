@@ -1,3 +1,21 @@
+/**
+ * AdminProject model – the agency's own portfolio projects.
+ *
+ * These are projects created by admin users to showcase the agency's work on
+ * the public portfolio page (`GET /api/v1/admin/projects/portfolio`).
+ * They are distinct from `Project` (client project requests).
+ *
+ * Key features:
+ *  - `isPublic` flag controls visibility on the public portfolio
+ *  - `techStack[]` lists technologies used
+ *  - `teamMembers[]` links to User documents with roles
+ *  - `projectGallery[]` stores Cloudinary image URLs
+ *  - `clientFeedback` embeds a review reference + rating
+ *  - Full-text index on `projectTitle` + `projectDescription`
+ *  - Virtuals: `isOverdue`, `durationInDays`
+ *  - Statics: `findByStatus`, `findByCreator`, `getProjectStats`, `getPublicPortfolio`
+ *  - Instance methods: `addTeamMember`, `removeTeamMember`, `updateStatus`, `addProjectImage`
+ */
 import mongoose from 'mongoose';
 
 // Project Schema
@@ -39,6 +57,7 @@ const projectSchema = new mongoose.Schema({
         index: true
     },
 
+    // Project duration with flexible unit (days/weeks/months/years)
     duration: {
         value: {
             type: Number,
@@ -60,6 +79,7 @@ const projectSchema = new mongoose.Schema({
         maxlength: [100, 'Role cannot exceed 100 characters']
     },
 
+    // Array of team members assigned to this project, each with a role
     teamMembers: [{
         memberId: {
             type: mongoose.Schema.Types.ObjectId,
@@ -81,6 +101,7 @@ const projectSchema = new mongoose.Schema({
         }
     }],
 
+    // Convenience reference to the single lead member (denormalised from teamMembers)
     projectLead: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
@@ -97,7 +118,7 @@ const projectSchema = new mongoose.Schema({
     },
 
 
-    // Project Gallery
+    // Project Gallery – Cloudinary image entries
     projectGallery: [{
         url: {
             type: String,
@@ -115,7 +136,7 @@ const projectSchema = new mongoose.Schema({
         }
     }],
 
-    // Client Feedback
+    // Client Feedback – can reference a Review document for consistency
     clientFeedback: {
         reviewId: {
             type: mongoose.Schema.Types.ObjectId,
@@ -183,6 +204,7 @@ const projectSchema = new mongoose.Schema({
         index: true
     },
 
+    // Completion percentage (0–100); auto-set to 100 when status is "Completed"
     completionPercentage: {
         type: Number,
         min: 0,
@@ -209,19 +231,22 @@ const projectSchema = new mongoose.Schema({
     toObject: { virtuals: true }
 });
 
-// Indexes for better query performance
+// ─── Indexes ─────────────────────────────────────────────────────────────────
+// Full-text search across title and description
 projectSchema.index({ projectTitle: 'text', projectDescription: 'text' });
 projectSchema.index({ createdBy: 1, status: 1 });
 projectSchema.index({ status: 1, priority: 1 });
 projectSchema.index({ startDate: 1, endDate: 1 });
 
-// Virtual for checking if project is overdue
+// ─── Virtuals ─────────────────────────────────────────────────────────────────
+
+/** True when the deadline has passed and the project is not yet completed. */
 projectSchema.virtual('isOverdue').get(function () {
     if (!this.deadline) return false;
     return this.deadline < new Date() && this.status !== 'Completed';
 });
 
-// Virtual for project duration in days
+/** Total duration normalised to days using the configured unit. */
 projectSchema.virtual('durationInDays').get(function () {
     if (!this.duration.value) return null;
 
@@ -235,9 +260,14 @@ projectSchema.virtual('durationInDays').get(function () {
     return this.duration.value * multipliers[this.duration.unit];
 });
 
-// Pre-save middleware
+// ─── Hooks ────────────────────────────────────────────────────────────────────
+
+/**
+ * Auto-set `completionPercentage` based on status:
+ *  - "Completed" → 100%
+ *  - "Draft"     → 0%
+ */
 projectSchema.pre('save', function () {
-    // Update completion percentage based on status
     if (this.status === 'Completed') {
         this.completionPercentage = 100;
     } else if (this.status === 'Draft') {
@@ -245,7 +275,9 @@ projectSchema.pre('save', function () {
     }
 });
 
-// Instance methods
+// ─── Instance Methods ─────────────────────────────────────────────────────────
+
+/** Adds a team member (no-op if already present); sets projectLead if isLead. */
 projectSchema.methods.addTeamMember = function (memberId, role = 'Developer', isLead = false) {
     const exists = this.teamMembers.some(member =>
         member.memberId.toString() === memberId.toString()
@@ -261,6 +293,7 @@ projectSchema.methods.addTeamMember = function (memberId, role = 'Developer', is
     return this.save();
 };
 
+/** Removes a team member by their user ID. */
 projectSchema.methods.removeTeamMember = function (memberId) {
     this.teamMembers = this.teamMembers.filter(member =>
         member.memberId.toString() !== memberId.toString()
@@ -269,6 +302,7 @@ projectSchema.methods.removeTeamMember = function (memberId) {
     return this.save();
 };
 
+/** Changes the project status and records who made the change; sets endDate on completion. */
 projectSchema.methods.updateStatus = function (newStatus, updatedBy) {
     this.status = newStatus;
     this.updatedBy = updatedBy;
@@ -281,6 +315,7 @@ projectSchema.methods.updateStatus = function (newStatus, updatedBy) {
     return this.save();
 };
 
+/** Appends an image entry to `projectGallery`. */
 projectSchema.methods.addProjectImage = function (url, filename, caption, uploadedBy) {
     this.projectGallery.push({
         url,
@@ -292,7 +327,9 @@ projectSchema.methods.addProjectImage = function (url, filename, caption, upload
     return this.save();
 };
 
-// Static methods
+// ─── Static Methods ───────────────────────────────────────────────────────────
+
+/** Returns all non-archived projects with a given status, populated with user info. */
 projectSchema.statics.findByStatus = function (status) {
     return this.find({ status, isArchived: false })
         .populate('createdBy', 'name email')
@@ -301,11 +338,13 @@ projectSchema.statics.findByStatus = function (status) {
         .sort('-createdAt');
 };
 
+/** Returns all non-archived projects created by a specific user. */
 projectSchema.statics.findByCreator = function (userId) {
     return this.find({ createdBy: userId, isArchived: false })
         .sort('-createdAt');
 };
 
+/** Aggregates project counts and average completion grouped by status. */
 projectSchema.statics.getProjectStats = async function (userId) {
     return this.aggregate([
         { $match: { createdBy: new mongoose.Types.ObjectId(userId), isArchived: false } },
@@ -319,14 +358,14 @@ projectSchema.statics.getProjectStats = async function (userId) {
     ]);
 };
 
-// Static: public portfolio – only published, non-archived projects
+/** Returns publicly visible, non-archived projects for the portfolio page. */
 projectSchema.statics.getPublicPortfolio = function (filter = {}) {
     return this.find({ isPublic: true, isArchived: false, ...filter })
         .select('projectTitle clientName category status techStack projectGallery projectDescription completionPercentage tags startDate endDate clientFeedback')
         .sort({ createdAt: -1 });
 };
 
-// Model
+// ─── Model ────────────────────────────────────────────────────────────────────
 const adminProject = mongoose.models.AdminProject || mongoose.model('AdminProject', projectSchema);
 
 export default adminProject;

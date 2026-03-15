@@ -1,3 +1,18 @@
+/**
+ * AdminProject controller – CRUD for the agency's own portfolio projects.
+ *
+ * All mutating routes require admin authentication.
+ * The public portfolio endpoint (`getPublicPortfolio`) is unauthenticated.
+ *
+ * Exported functions:
+ *  - createProject      POST /api/v1/admin/projects
+ *  - getAllProjects      GET  /api/v1/admin/projects         (admin, paginated + filtered)
+ *  - getProjectById     GET  /api/v1/admin/projects/:id
+ *  - updateProject      PUT  /api/v1/admin/projects/:id
+ *  - deleteProject      DELETE /api/v1/admin/projects/:id
+ *  - getPublicPortfolio GET  /api/v1/admin/projects/portfolio (public)
+ *  - updateProjectStatus PATCH /api/v1/admin/projects/:id/status
+ */
 import asyncHandler from "../../middlewares/asyncHandler.js"
 import AppError from "../../utils/AppError.js";
 import { successResponse } from "../../utils/apiResponse.js";

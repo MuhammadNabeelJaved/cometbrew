@@ -1,3 +1,17 @@
+/**
+ * Contact model – stores contact form submissions from site visitors.
+ *
+ * Each submission captures a visitor's name, email, subject, and message.
+ * The email field is unique-indexed, meaning each email address can only
+ * submit one contact form (prevents duplicate leads from the same person).
+ *
+ * Accessible via:
+ *  - POST /api/v1/contacts        – public, anyone can submit
+ *  - GET  /api/v1/contacts        – admin only
+ *  - GET  /api/v1/contacts/:id    – admin only
+ *  - PUT  /api/v1/contacts/:id    – admin only
+ *  - DELETE /api/v1/contacts/:id  – admin only
+ */
 import mongoose from "mongoose";
 import validator from "validator";
 
@@ -19,6 +33,7 @@ const contactSchema = new mongoose.Schema(
             maxlength: [50, "Last name cannot exceed 50 characters"],
         },
 
+        // Unique index prevents the same person submitting multiple times
         email: {
             type: String,
             required: [true, "Email is required"],

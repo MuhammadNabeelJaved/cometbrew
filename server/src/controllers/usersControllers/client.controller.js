@@ -1,3 +1,19 @@
+/**
+ * Client controller – CRM management for the agency's business clients.
+ *
+ * All routes are admin-only (enforced by the router).
+ * `deleteClient` archives (soft-deletes) rather than permanently removing.
+ * `getAllClients` and `getClientById` augment each client with an
+ * `activeProjects` count computed from the Project collection.
+ *
+ * Exported functions:
+ *  - createClient   POST   /api/v1/clients
+ *  - getAllClients   GET    /api/v1/clients      (paginated, filterable, searchable)
+ *  - getClientById  GET    /api/v1/clients/:id
+ *  - updateClient   PUT    /api/v1/clients/:id
+ *  - deleteClient   DELETE /api/v1/clients/:id  (archives, does not delete)
+ *  - getClientStats GET    /api/v1/clients/stats
+ */
 import asyncHandler from "../../middlewares/asyncHandler.js";
 import AppError from "../../utils/AppError.js";
 import { successResponse } from "../../utils/apiResponse.js";

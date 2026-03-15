@@ -1,3 +1,23 @@
+/**
+ * Jobs controller – CRUD for job postings plus public discovery endpoints.
+ *
+ * Public endpoints: getAllJobs, getActiveJobs, getFeaturedJobs, getJobById
+ * Admin endpoints:  createJob, updateJob, updateJobStatus, deleteJob
+ *
+ * `getJobById` increments `viewsCount` on every request to track popularity.
+ * `getAllJobs` supports filtering by status, department, employmentType,
+ * experienceLevel, workMode, featured flag, and full-text search.
+ *
+ * Exported functions:
+ *  - createJob        POST   /api/v1/jobs            (admin)
+ *  - getAllJobs        GET    /api/v1/jobs            (public, paginated)
+ *  - getActiveJobs    GET    /api/v1/jobs/active     (public)
+ *  - getFeaturedJobs  GET    /api/v1/jobs/featured   (public)
+ *  - getJobById       GET    /api/v1/jobs/:id        (public, increments viewsCount)
+ *  - updateJob        PUT    /api/v1/jobs/:id        (admin)
+ *  - updateJobStatus  PATCH  /api/v1/jobs/:id/status (admin)
+ *  - deleteJob        DELETE /api/v1/jobs/:id        (admin)
+ */
 import asyncHandler from "../../middlewares/asyncHandler.js";
 import AppError from "../../utils/AppError.js";
 import { successResponse } from "../../utils/apiResponse.js";

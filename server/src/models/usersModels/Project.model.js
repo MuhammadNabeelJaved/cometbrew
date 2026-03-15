@@ -1,3 +1,17 @@
+/**
+ * Project model – client project requests submitted through the platform.
+ *
+ * This is NOT the same as `AdminProject` (the agency's own portfolio).
+ * These are requests made by clients asking the agency to work on a project.
+ *
+ * Key features:
+ *  - Budget range picked from a fixed enum (avoids free-text amounts)
+ *  - File attachments array (images, PDFs, docs) uploaded to Cloudinary
+ *  - Payment tracking: `totalCost`, `paidAmount`, virtual `dueAmount`
+ *  - `paymentStatus` auto-updated on every save via pre-save hook
+ *  - Status workflow: pending → in_review → approved / rejected → completed
+ *  - Full-text index on `projectName` + `projectDetails`
+ */
 import mongoose from "mongoose";
 
 const projectRequestSchema = new mongoose.Schema(
@@ -29,6 +43,7 @@ const projectRequestSchema = new mongoose.Schema(
       },
     },
 
+    // Pre-defined budget brackets keep reporting consistent
     budgetRange: {
       type: String,
       required: [true, "Budget range is required"],
@@ -58,12 +73,13 @@ const projectRequestSchema = new mongoose.Schema(
       type: Date,
       validate: {
         validator: function (value) {
-          return value > new Date();
+          return value > new Date(); // Must be in the future
         },
         message: "Deadline must be a future date",
       },
     },
 
+    // Admin-set progress percentage (0–100)
     progress: {
       type: Number,
       default: 0,
@@ -84,6 +100,7 @@ const projectRequestSchema = new mongoose.Schema(
       min: [0, "Paid amount cannot be negative"],
       validate: {
         validator: function (value) {
+          // paidAmount must not exceed totalCost when both are set
           return !this.totalCost || value <= this.totalCost;
         },
         message: "Paid amount cannot exceed total cost",
@@ -91,6 +108,7 @@ const projectRequestSchema = new mongoose.Schema(
       default: 0,
     },
 
+    // Derived from paidAmount vs totalCost — auto-updated in pre-save hook
     paymentStatus: {
       type: String,
       enum: ["unpaid", "partial", "paid"],
@@ -100,10 +118,11 @@ const projectRequestSchema = new mongoose.Schema(
     // =========================
     // ATTACHMENTS
     // =========================
+    // Files uploaded by the client; stored in Cloudinary, referenced here
     attachments: [
       {
         fileName: String,
-        fileUrl: String,
+        fileUrl: String,      // Cloudinary secure_url
         fileType: {
           type: String,
           enum: ["image", "pdf", "doc", "other"],
@@ -121,6 +140,7 @@ const projectRequestSchema = new mongoose.Schema(
       index: true,
     },
 
+    // Admin controls this field; clients can only see it
     status: {
       type: String,
       enum: ["pending", "in_review", "approved", "rejected", "completed"],
@@ -144,6 +164,10 @@ const projectRequestSchema = new mongoose.Schema(
 // =========================
 // VIRTUAL: DUE AMOUNT
 // =========================
+/**
+ * The remaining amount the client owes.
+ * Returns 0 if no totalCost has been set yet.
+ */
 projectRequestSchema.virtual("dueAmount").get(function () {
   if (!this.totalCost) return 0;
   return this.totalCost - (this.paidAmount || 0);
@@ -152,6 +176,10 @@ projectRequestSchema.virtual("dueAmount").get(function () {
 // =========================
 // PRE-SAVE: PAYMENT STATUS AUTO UPDATE
 // =========================
+/**
+ * Automatically derives `paymentStatus` from `totalCost` and `paidAmount`
+ * on every save, keeping the status in sync without manual updates.
+ */
 projectRequestSchema.pre("save", function () {
   if (!this.totalCost || this.paidAmount === 0) {
     this.paymentStatus = "unpaid";
@@ -165,6 +193,7 @@ projectRequestSchema.pre("save", function () {
 // =========================
 // INDEXES
 // =========================
+// Enables full-text search via { $text: { $search: "..." } }
 projectRequestSchema.index({ projectName: "text", projectDetails: "text" });
 
 // =========================

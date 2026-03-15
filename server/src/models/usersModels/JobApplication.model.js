@@ -1,8 +1,22 @@
+/**
+ * JobApplication model – applications submitted by candidates for job postings.
+ *
+ * Key design decisions:
+ *  - Compound unique index `{ job, email }` prevents a candidate from applying
+ *    to the same job posting more than once
+ *  - `resumePublicId` stores the Cloudinary public_id so the file can be
+ *    deleted from Cloudinary when the application is removed
+ *  - `reviewedBy` / `reviewedAt` track which admin reviewed the application
+ *  - Status workflow: pending → reviewing → shortlisted → rejected / hired
+ *
+ * Public endpoint:  POST /api/v1/job-applications  (anyone can apply)
+ * Admin endpoints:  GET, PATCH /status, DELETE (admin only)
+ */
 import mongoose from "mongoose";
 
 const jobApplicationSchema = new mongoose.Schema(
     {
-        // Which job this is for
+        // Which job this application is for
         job: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "JobPosting",
@@ -57,10 +71,10 @@ const jobApplicationSchema = new mongoose.Schema(
         // Documents
         resumeUrl: {
             type: String,
-            trim: true,
+            trim: true,             // Cloudinary secure_url of the uploaded resume
         },
         resumePublicId: {
-            type: String, // Cloudinary public_id for deletion
+            type: String,           // Cloudinary public_id – used to delete the file
             trim: true,
         },
         coverLetter: {
@@ -69,7 +83,7 @@ const jobApplicationSchema = new mongoose.Schema(
             maxlength: [3000, "Cover letter cannot exceed 3000 characters"],
         },
 
-        // Application Status
+        // Application Status – controlled by admin only
         status: {
             type: String,
             enum: ["pending", "reviewing", "shortlisted", "rejected", "hired"],
@@ -77,13 +91,14 @@ const jobApplicationSchema = new mongoose.Schema(
             index: true,
         },
 
-        // Admin notes
+        // Admin notes (internal, not visible to applicant)
         adminNotes: {
             type: String,
             trim: true,
             maxlength: [1000, "Admin notes cannot exceed 1000 characters"],
         },
 
+        // Tracks which admin reviewed this application and when
         reviewedBy: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
@@ -98,16 +113,24 @@ const jobApplicationSchema = new mongoose.Schema(
     }
 );
 
-// Indexes
-jobApplicationSchema.index({ job: 1, email: 1 }, { unique: true }); // one application per email per job
+// ─── Indexes ─────────────────────────────────────────────────────────────────
+// Enforce one application per email per job posting
+jobApplicationSchema.index({ job: 1, email: 1 }, { unique: true });
 jobApplicationSchema.index({ status: 1, createdAt: -1 });
 
-// Static: get all applications for a job
+// ─── Static Methods ───────────────────────────────────────────────────────────
+
+/** Returns all applications for a given job posting, newest first. */
 jobApplicationSchema.statics.getByJob = function (jobId) {
     return this.find({ job: jobId }).sort({ createdAt: -1 });
 };
 
-// Static: get stats
+/**
+ * Aggregates application counts grouped by status.
+ * Useful for the admin dashboard overview widget.
+ *
+ * @returns {Promise<Array<{ _id: string, count: number }>>}
+ */
 jobApplicationSchema.statics.getStats = async function () {
     return this.aggregate([
         {

@@ -1,8 +1,25 @@
+/**
+ * HomePageHero model – singleton CMS document for the homepage hero section.
+ *
+ * Only one active document exists at a time (`isActive: true`).
+ * All hero content is managed by admin users and rendered publicly via
+ * `GET /api/v1/homepage`.
+ *
+ * Content controlled:
+ *  - `statusBadge`  – short banner text (e.g. "Accepting New Projects for 2026")
+ *  - `titleLine1`   – first line of the hero heading (plain text)
+ *  - `titleLine2`   – second line of the hero heading (highlighted/coloured)
+ *  - `subtitle`     – supporting paragraph under the heading
+ *  - `ctaButtons[]` – call-to-action buttons (primary/secondary)
+ *
+ * Use `HomePageHero.getActiveContent()` to retrieve (or auto-create) the
+ * active document.
+ */
 import mongoose from "mongoose";
 
 const homePageSchema = new mongoose.Schema(
     {
-        // Status Badge
+        // Short badge displayed above the main heading (e.g. "Now Hiring", "Accepting Projects")
         statusBadge: {
             type: String,
             required: [true, "Status badge is required"],
@@ -11,7 +28,7 @@ const homePageSchema = new mongoose.Schema(
             default: "Accepting New Projects for 2024",
         },
 
-        // Hero Section - Title Line 1
+        // Hero Section - Title Line 1 (plain text)
         titleLine1: {
             type: String,
             required: [true, "Title line 1 is required"],
@@ -29,7 +46,7 @@ const homePageSchema = new mongoose.Schema(
             default: "Digital Excellence",
         },
 
-        // Subtitle/Description
+        // Subtitle/Description – shown below the heading
         subtitle: {
             type: String,
             required: [true, "Subtitle is required"],
@@ -40,7 +57,7 @@ const homePageSchema = new mongoose.Schema(
         },
 
 
-        // CTA Buttons (Optional - for future use)
+        // CTA Buttons – rendered as call-to-action buttons in the hero
         ctaButtons: [
             {
                 text: {
@@ -54,17 +71,18 @@ const homePageSchema = new mongoose.Schema(
                 },
                 isPrimary: {
                     type: Boolean,
-                    default: true,
+                    default: true, // Controls button styling (primary vs secondary)
                 },
             },
         ],
 
-
+        // Only one document should be active at a time
         isActive: {
             type: Boolean,
             default: true,
         },
 
+        // Tracks which admin last modified this content
         lastUpdatedBy: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
@@ -76,11 +94,18 @@ const homePageSchema = new mongoose.Schema(
     }
 );
 
-// Static method to get active home page content
+// ─── Static Methods ───────────────────────────────────────────────────────────
+
+/**
+ * Returns the active homepage content. If no document exists, creates one
+ * with sensible default values so the site never renders empty.
+ *
+ * @returns {Promise<Document>} The active HomePage document
+ */
 homePageSchema.statics.getActiveContent = async function () {
     const content = await this.findOne({ isActive: true });
     if (!content) {
-        // Return default content if none exists
+        // Auto-create with defaults so the frontend always has content to display
         return this.create({
             statusBadge: "Accepting New Projects for 2026",
             titleLine1: "We Build",

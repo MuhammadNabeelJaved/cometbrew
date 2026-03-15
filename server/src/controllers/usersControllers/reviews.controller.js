@@ -1,3 +1,32 @@
+/**
+ * Reviews controller – client testimonials with admin moderation.
+ *
+ * Review flow:
+ *  1. Client submits a review for their own approved project → status: "pending"
+ *  2. Admin reviews and sets status to "approved" or "rejected"
+ *  3. Only approved reviews are returned on the public `GET /all` endpoint
+ *
+ * Business rules enforced:
+ *  - Users can only review their own projects
+ *  - The project must be in "approved" status
+ *  - One review per user per project
+ *  - Users can only edit/delete their own pending reviews
+ *  - Admins can manage all reviews regardless of status
+ *
+ * Exported functions:
+ *  - createReview         POST   /api/v1/reviews             (authenticated)
+ *  - getAllReviews         GET    /api/v1/reviews/all         (public, approved only)
+ *  - getAllReviewsAdmin    GET    /api/v1/reviews             (admin, all statuses)
+ *  - getReviewById        GET    /api/v1/reviews/:id
+ *  - getReviewsByProject  GET    /api/v1/reviews/project/:projectId
+ *  - getMyReviews         GET    /api/v1/reviews/my-reviews
+ *  - updateReview         PUT    /api/v1/reviews/:id
+ *  - updateReviewStatus   PUT    /api/v1/reviews/:id/status  (admin)
+ *  - deleteReview         DELETE /api/v1/reviews/:id
+ *  - getReviewsByRating   GET    /api/v1/reviews/rating/:rating
+ *  - getReviewStatistics  GET    /api/v1/reviews/statistics  (admin)
+ *  - bulkDeleteReviews    DELETE /api/v1/reviews/bulk-delete (admin)
+ */
 import Review from "../../models/usersModels/Reviews.model.js";
 import Project from "../../models/usersModels/Project.model.js";
 import User from "../../models/usersModels/User.model.js";

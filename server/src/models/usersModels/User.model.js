@@ -1,3 +1,18 @@
+/**
+ * User model – core identity and authentication schema.
+ *
+ * Covers:
+ *  - Basic profile (name, email, password, avatar)
+ *  - Roles: "admin" | "team" | "user"
+ *  - JWT access/refresh token storage
+ *  - Email verification (6-digit code, 10-minute expiry)
+ *  - Password reset (SHA-256 hashed token, 10-minute expiry)
+ *  - Soft-delete via `deletedAt`
+ *  - Team-member extended profile (`teamProfile` sub-document)
+ *
+ * Important: `password` is excluded from queries by default (`select: false`).
+ * Use `.select("+password")` when you need to compare passwords.
+ */
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
 import validator from "validator";
@@ -33,12 +48,12 @@ const userSchema = new mongoose.Schema(
             required: [true, "Password is required"],
             minlength: [8, "Password must be at least 8 characters"],
             // maxlength: [20, "Password cannot exceed 20 characters"],
-            select: false,
+            select: false, // Never returned in queries unless explicitly requested
         },
 
         photo: {
             type: String,
-            default: "default.jpg",
+            default: "default.jpg", // Falls back to a placeholder avatar
         },
 
         // =====================
@@ -50,6 +65,8 @@ const userSchema = new mongoose.Schema(
             default: "user",
             index: true,
         },
+
+        // Stored tokens (not returned by default); refreshed on each login
         accessToken: {
             type: String,
             select: false,
@@ -59,6 +76,7 @@ const userSchema = new mongoose.Schema(
             select: false,
         },
 
+        // Fine-grained permission strings (currently unused; reserved for future RBAC)
         permissions: {
             type: [String],
             default: [],
@@ -73,6 +91,7 @@ const userSchema = new mongoose.Schema(
             index: true,
         },
 
+        // Email must be verified before the user can log in
         isVerified: {
             type: Boolean,
             default: false,
@@ -83,12 +102,12 @@ const userSchema = new mongoose.Schema(
         // =====================
         emailVerificationToken: {
             type: String,
-            // select: false,
+            // Plain-text 6-digit code stored temporarily until verified
         },
 
         emailVerificationExpires: {
             type: Date,
-            // select: false,
+            // Set to 10 minutes from generation; checked before accepting the code
         },
 
         // =====================
@@ -96,7 +115,7 @@ const userSchema = new mongoose.Schema(
         // =====================
         passwordResetToken: {
             type: String,
-            select: false,
+            select: false, // SHA-256 hash of the raw token sent via email
         },
 
         passwordResetExpires: {
@@ -104,14 +123,14 @@ const userSchema = new mongoose.Schema(
             select: false,
         },
 
-        passwordChangedAt: Date,
+        passwordChangedAt: Date, // Updated whenever the password is changed
 
         // =====================
         // SOFT DELETE (PRO)
         // =====================
         deletedAt: {
             type: Date,
-            default: null,
+            default: null, // null = active; non-null = soft-deleted
             index: true,
         },
 
@@ -119,6 +138,7 @@ const userSchema = new mongoose.Schema(
         // TEAM MEMBER SPECIFIC FIELDS (conditionally required)
         // =====================
         teamProfile: {
+            // `position` is required for users with role "team" or "admin"
             position: {
                 type: String,
                 trim: true,
@@ -167,11 +187,13 @@ const userSchema = new mongoose.Schema(
                 default: Date.now
             },
 
+            // Controls display order on the public team page (lower = first)
             displayOrder: {
                 type: Number,
                 default: 0
             },
 
+            // Whether this member appears in the "featured" section of the team page
             featured: {
                 type: Boolean,
                 default: false
@@ -198,12 +220,20 @@ const userSchema = new mongoose.Schema(
     }
 );
 
+// ─── Hooks ───────────────────────────────────────────────────────────────────
+
+/**
+ * Hash the password with bcrypt (cost factor 10) before any save.
+ * Skipped if the password field was not modified (avoids double-hashing).
+ */
 userSchema.pre("save", async function () {
     if (!this.isModified("password")) return;
     this.password = await bcrypt.hash(this.password, 10);
 });
 
-// Static method to get team members only
+// ─── Static Methods ───────────────────────────────────────────────────────────
+
+/** Returns all active team/admin users sorted by their display order. */
 userSchema.statics.getTeamMembers = function () {
     return this.find({
         role: { $in: ['team', 'admin'] },
@@ -211,7 +241,7 @@ userSchema.statics.getTeamMembers = function () {
     }).sort({ 'teamProfile.displayOrder': 1 });
 };
 
-// Static method to get by department
+/** Returns active team/admin users filtered by department. */
 userSchema.statics.getByDepartment = function (department) {
     return this.find({
         role: { $in: ['team', 'admin'] },
@@ -220,7 +250,13 @@ userSchema.statics.getByDepartment = function (department) {
     });
 };
 
+// ─── Instance Methods ─────────────────────────────────────────────────────────
 
+/**
+ * Generates a 6-digit numeric verification code, stores its hash and expiry
+ * on the document, saves the document, and returns the raw code.
+ * The raw code should be sent to the user via email.
+ */
 userSchema.methods.generateVerificationCode = async function () {
     const code = Math.floor(100000 + Math.random() * 900000).toString()
     this.emailVerificationToken = code
@@ -229,8 +265,12 @@ userSchema.methods.generateVerificationCode = async function () {
     return code
 }
 
-
-
+/**
+ * Compares a plain-text password against the stored bcrypt hash.
+ *
+ * @param {string} enteredPassword - Plain-text password from the login form
+ * @returns {Promise<boolean>} true if matching, false otherwise
+ */
 userSchema.methods.comparePassword = async function (enteredPassword) {
     if (!enteredPassword || !this.password) {
         return false;
@@ -239,7 +279,13 @@ userSchema.methods.comparePassword = async function (enteredPassword) {
     return await bcrypt.compare(enteredPassword, this.password);
 };
 
-
+/**
+ * Generates a password reset token:
+ *  1. Creates a cryptographically random 20-byte hex string (the raw token)
+ *  2. Stores its SHA-256 hash on the document (`passwordResetToken`)
+ *  3. Sets a 10-minute expiry (`passwordResetExpires`)
+ *  4. Saves the document and returns the raw token to be included in the email link
+ */
 userSchema.methods.forgetPasswordToken = async function () {
     const resetToken = crypto.randomBytes(20).toString("hex");
     this.passwordResetToken = crypto.createHash("sha256").update(resetToken).digest("hex");
@@ -248,19 +294,28 @@ userSchema.methods.forgetPasswordToken = async function () {
     return resetToken;
 }
 
-
+/** Returns true if the provided code matches and has not expired. */
 userSchema.methods.isVerificationCodeCorrect = async function (code) {
     return this.emailVerificationToken === code && this.emailVerificationExpires > Date.now()
 }
 
+/** Returns true if the verification code has passed its expiry time. */
 userSchema.methods.isVerificationCodeExpired = async function () {
     return this.emailVerificationExpires < Date.now()
 }
 
+/**
+ * Signs and returns a short-lived JWT access token (default 15 minutes).
+ * Payload: { id }
+ */
 userSchema.methods.generateAccessToken = function () {
     return jwt.sign({ id: this._id }, process.env.JWT_ACCESS_SECRET, { expiresIn: process.env.JWT_ACCESS_SECRET_EXPIRES_IN })
 }
 
+/**
+ * Signs and returns a long-lived JWT refresh token (default 7 days).
+ * Payload: { id }
+ */
 userSchema.methods.generateRefreshToken = function () {
     return jwt.sign({ id: this._id }, process.env.JWT_REFRESH_SECRET, { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN })
 }

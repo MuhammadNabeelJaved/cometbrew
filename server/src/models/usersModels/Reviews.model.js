@@ -1,9 +1,22 @@
+/**
+ * Review model – client testimonials linked to projects.
+ *
+ * Key design decisions:
+ *  - `rating` is validated as a whole integer (1–5); fractional stars are rejected
+ *  - `status` workflow: pending → approved / rejected
+ *    (only approved reviews are visible on the public endpoint)
+ *  - Both `client` (User ref) and `project` (Project ref) are required,
+ *    tying each review to a specific person and piece of work
+ *
+ * Public endpoint:  GET /api/v1/reviews/all  (approved reviews only)
+ * Admin endpoints:  full CRUD + status management
+ */
 import mongoose from 'mongoose';
 
 
 // Review Schema
 const reviewSchema = new mongoose.Schema({
-    // Client Information
+    // The User who wrote this review
     client: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
@@ -19,7 +32,7 @@ const reviewSchema = new mongoose.Schema({
         max: [5, 'Rating cannot exceed 5'],
         validate: {
             validator: Number.isInteger,
-            message: 'Rating must be a whole number'
+            message: 'Rating must be a whole number' // Reject 4.5, accept 4 or 5
         }
     },
     reviewText: {
@@ -30,13 +43,14 @@ const reviewSchema = new mongoose.Schema({
         maxlength: [1000, 'Review cannot exceed 1000 characters']
     },
 
-    // Project Reference
+    // Project this review is about (must exist in the Project collection)
     project: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Project',
         required: [true, 'Project reference is required']
     },
-    // Display Options
+
+    // Moderation status – only "approved" reviews are shown publicly
     status: {
         type: String,
         enum: ['pending', 'approved', 'rejected'],
@@ -46,25 +60,35 @@ const reviewSchema = new mongoose.Schema({
     timestamps: true
 });
 
-// Indexes for better query performance
-reviewSchema.index({ rating: -1 });
-reviewSchema.index({ createdAt: -1 });
-reviewSchema.index({ project: 1 });
-reviewSchema.index({ status: 1 });
+// ─── Indexes ─────────────────────────────────────────────────────────────────
+reviewSchema.index({ rating: -1 });        // For getByRating queries
+reviewSchema.index({ createdAt: -1 });     // For recent-reviews queries
+reviewSchema.index({ project: 1 });        // For getProjectAverageRating
+reviewSchema.index({ status: 1 });         // For filtering approved reviews
 
-// Virtual for star display
+// ─── Virtuals ─────────────────────────────────────────────────────────────────
+
+/** Returns a star string representation of the rating (e.g. "⭐⭐⭐⭐"). */
 reviewSchema.virtual('stars').get(function () {
     return '⭐'.repeat(this.rating);
 });
 
-// Method to get review with project details
+// ─── Instance Methods ─────────────────────────────────────────────────────────
+
+/** Populates the `project` reference and returns the full review document. */
 reviewSchema.methods.getFullReview = async function () {
     await this.populate('project');
     return this;
 };
 
+// ─── Static Methods ───────────────────────────────────────────────────────────
 
-// Static method to get reviews by rating
+/**
+ * Returns all approved reviews with a specific star rating, newest first.
+ *
+ * @param {number} rating - Integer 1–5
+ * @returns {Query} Mongoose query with `project` populated
+ */
 reviewSchema.statics.getByRating = function (rating) {
     return this.find({
         rating: rating,
@@ -74,7 +98,13 @@ reviewSchema.statics.getByRating = function (rating) {
         .sort({ createdAt: -1 });
 };
 
-// Static method to get average rating for a project
+/**
+ * Aggregates the average rating and total review count for a project.
+ * Only counts approved reviews.
+ *
+ * @param {string|ObjectId} projectId
+ * @returns {Promise<{ averageRating: number, totalReviews: number }>}
+ */
 reviewSchema.statics.getProjectAverageRating = async function (projectId) {
     const result = await this.aggregate([
         {

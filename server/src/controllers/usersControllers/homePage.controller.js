@@ -1,3 +1,17 @@
+/**
+ * HomePage controller – manages the singleton hero section CMS document.
+ *
+ * Only one HomePage document should ever exist (singleton pattern).
+ * `createHomePage` returns 400 if one already exists.
+ * `getHomePage` uses `getActiveContent()` which auto-creates a default if none exists.
+ *
+ * Exported functions:
+ *  - getHomePage         GET    /api/v1/homepage         (public)
+ *  - createHomePage      POST   /api/v1/homepage/add     (admin, first-time only)
+ *  - updateHomePage      PUT    /api/v1/homepage/update  (admin, partial updates)
+ *  - deleteHomePage      DELETE /api/v1/homepage/delete  (admin)
+ *  - deleteSpecificField DELETE /api/v1/homepage/delete-field (admin, clears one field)
+ */
 import HomePage from "../../models/usersModels/HomePageHero.js";
 import asyncHandler from "../../middlewares/asyncHandler.js";
 import AppError from "../../utils/AppError.js";

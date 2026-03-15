@@ -1,3 +1,18 @@
+/**
+ * CMS controller – manages the singleton CMS document.
+ *
+ * All write operations require admin authentication (enforced by the router).
+ * The `getCMS` read endpoint is public.
+ *
+ * Every handler calls `CMS.getOrCreate()` to ensure the singleton document
+ * is auto-created if it doesn't exist yet, rather than failing with a null error.
+ *
+ * Sections managed:
+ *  - Logo         PATCH /api/v1/cms/logo
+ *  - Tech Stack   PUT   /api/v1/cms/tech-stack  + category CRUD
+ *  - Concept to Reality  PUT /api/v1/cms/concept-to-reality + step CRUD
+ *  - Why Choose Us       PUT /api/v1/cms/why-choose-us     + card CRUD
+ */
 import asyncHandler from "../../middlewares/asyncHandler.js";
 import AppError from "../../utils/AppError.js";
 import { successResponse } from "../../utils/apiResponse.js";

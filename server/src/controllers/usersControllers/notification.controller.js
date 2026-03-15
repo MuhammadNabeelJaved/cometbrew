@@ -1,3 +1,20 @@
+/**
+ * Notification controller – per-user notifications and admin broadcast.
+ *
+ * User endpoints (require authentication, own notifications only):
+ *  - getMyNotifications  GET    /api/v1/notifications/my            (supports ?unreadOnly=true)
+ *  - markAsRead          PATCH  /api/v1/notifications/my/:id/read
+ *  - markAllAsRead       PATCH  /api/v1/notifications/my/read-all
+ *  - deleteNotification  DELETE /api/v1/notifications/my/:id
+ *  - clearAllNotifications DELETE /api/v1/notifications/my/clear-all
+ *
+ * Admin endpoints:
+ *  - sendNotification    POST   /api/v1/notifications/send          (send to any user)
+ *  - getAllNotifications  GET    /api/v1/notifications               (all users, paginated)
+ *
+ * Security: read/delete operations filter by `recipient: req.user._id` to ensure
+ * users cannot access or modify other users' notifications.
+ */
 import asyncHandler from "../../middlewares/asyncHandler.js";
 import AppError from "../../utils/AppError.js";
 import { successResponse } from "../../utils/apiResponse.js";
