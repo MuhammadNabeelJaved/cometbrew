@@ -48,7 +48,11 @@ const jwtTokens = async (user) => {
 
         const accessToken = user.generateAccessToken();
         const refreshToken = user.generateRefreshToken();
+
+        // Persist the refresh token so the /refresh-token endpoint can validate it
+        user.refreshToken = refreshToken;
         await user.save({ validateBeforeSave: false });
+
         return { accessToken, refreshToken };
     } catch (error) {
         console.error("Error in jwtTokens:", error);
