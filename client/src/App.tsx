@@ -84,6 +84,7 @@ import TeamSettings from './pages/team/TeamSettings';
 import TeamCalendar from './pages/team/TeamCalendar';
 import TeamChat from './pages/team/TeamChat';
 import TeamResources from './pages/team/TeamResources';
+import TeamClientRequestDetail from './pages/team/TeamClientRequestDetail';
 
 // User Dashboard Pages
 import { UserDashboardLayout } from './layouts/UserDashboardLayout';
@@ -245,6 +246,7 @@ export default function App() {
                 <Route index element={<TeamDashboardHome />} />
                 <Route path="projects" element={<TeamProjects />} />
                 <Route path="projects/:id" element={<TeamProjectDetail />} />
+                <Route path="client-requests/:id" element={<TeamClientRequestDetail />} />
                 <Route path="tasks" element={<TeamTasks />} />
                 <Route path="reports" element={<TeamReports />} />
                 <Route path="calendar" element={<TeamCalendar />} />

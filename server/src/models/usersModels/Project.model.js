@@ -148,6 +148,14 @@ const projectRequestSchema = new mongoose.Schema(
       index: true,
     },
 
+    // Team members assigned to work on this client project
+    assignedTeam: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+
     isArchived: {
       type: Boolean,
       default: false,

@@ -125,9 +125,14 @@ export const getAllProjects = asyncHandler(async (req, res) => {
             filter.$text = { $search: search };
         }
 
-        // For regular users, show only their projects
-        if (req?.user?.role !== 'admin') {
-            filter.requestedBy = req?.user?.id;
+        // Role-based filtering:
+        //  - admin  → sees everything
+        //  - team   → sees only projects assigned to them
+        //  - user   → sees only their own requests
+        if (req?.user?.role === 'team') {
+            filter.assignedTeam = req?.user?._id;
+        } else if (req?.user?.role !== 'admin') {
+            filter.requestedBy = req?.user?._id;
         }
 
         // Pagination
@@ -137,7 +142,8 @@ export const getAllProjects = asyncHandler(async (req, res) => {
         // Execute query
         const [projects, total] = await Promise.all([
             Project.find(filter)
-                .populate('requestedBy', 'name email')
+                .populate('requestedBy', 'name email photo')
+                .populate('assignedTeam', 'name email photo')
                 .sort({ [sortBy]: sortOrder })
                 .skip(skip)
                 .limit(parseInt(limit))
@@ -178,7 +184,8 @@ export const getProjectById = asyncHandler(async (req, res) => {
         }
 
         const project = await Project.findById(id)
-            .populate('requestedBy', 'name email avatar');
+            .populate('requestedBy', 'name email photo')
+            .populate('assignedTeam', 'name email photo');
 
         if (!project) {
             throw new AppError("Project not found", 404);
@@ -213,7 +220,8 @@ export const updateProject = asyncHandler(async (req, res) => {
             totalCost,
             paidAmount,
             progress,
-            status
+            status,
+            assignedTeam,
         } = req.body;
 
         const files = req?.files;
@@ -239,9 +247,13 @@ export const updateProject = asyncHandler(async (req, res) => {
         if (paidAmount !== undefined) project.paidAmount = parseFloat(paidAmount);
         if (progress !== undefined) project.progress = parseInt(progress);
 
-        // Only admin can update status
-        if (status && req?.user?.role === 'admin') {
-            project.status = status;
+        // Only admin can update status and team assignment
+        if (req?.user?.role === 'admin') {
+            if (status) project.status = status;
+            if (assignedTeam !== undefined) {
+                // Accept array of IDs or single ID
+                project.assignedTeam = Array.isArray(assignedTeam) ? assignedTeam : [assignedTeam];
+            }
         }
 
         // Handle new file uploads

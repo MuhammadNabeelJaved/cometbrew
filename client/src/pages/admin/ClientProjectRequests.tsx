@@ -1,13 +1,13 @@
 /**
  * Admin — Client Project Requests
  * View, filter, and manage all client-submitted project requests.
- * Admin can accept, reject, delete, or fully edit any request.
+ * Admin can accept, reject, delete, edit, and assign team members.
  */
 import React, { useState, useEffect } from 'react';
 import {
   Search, Loader2, X, Eye, CheckCircle2, Clock, RefreshCw,
   AlertCircle, FolderKanban, FileText, Save, Trash2, Check, XCircle,
-  User, CalendarDays,
+  CalendarDays, UserPlus, Users,
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -20,7 +20,7 @@ import { Select, SelectItem } from '../../components/ui/select';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '../../components/ui/table';
-import { Avatar, AvatarFallback } from '../../components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
 import ConfirmDeleteDialog from '../../components/ui/ConfirmDeleteDialog';
 import { toast } from 'sonner';
 import apiClient from '../../api/apiClient';
@@ -32,6 +32,14 @@ interface Attachment {
   fileName: string;
   fileUrl: string;
   fileType: string;
+}
+
+interface TeamMember {
+  _id: string;
+  name: string;
+  email: string;
+  photo?: string;
+  teamProfile?: { position?: string; department?: string };
 }
 
 interface ProjectRequest {
@@ -49,6 +57,7 @@ interface ProjectRequest {
   deadline?: string;
   attachments: Attachment[];
   requestedBy: { _id: string; name: string; email: string } | null;
+  assignedTeam: { _id: string; name: string; email: string; photo?: string }[];
   createdAt: string;
 }
 
@@ -70,12 +79,6 @@ const STATUS_COLORS: Record<string, string> = {
   rejected:  'bg-red-500/10 text-red-500 border-red-500/20',
 };
 
-const PAYMENT_COLORS: Record<string, string> = {
-  paid:    'text-green-500',
-  partial: 'text-amber-500',
-  unpaid:  'text-muted-foreground',
-};
-
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
@@ -93,18 +96,20 @@ function timeAgo(dateStr: string): string {
 
 export default function ClientProjectRequests() {
   const [requests, setRequests]         = useState<ProjectRequest[]>([]);
+  const [teamMembers, setTeamMembers]   = useState<TeamMember[]>([]);
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState<string | null>(null);
   const [search, setSearch]             = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
 
   // Edit dialog
-  const [selected, setSelected]         = useState<ProjectRequest | null>(null);
-  const [saving, setSaving]             = useState(false);
-  const [editStatus, setEditStatus]     = useState('');
-  const [editProgress, setEditProgress] = useState('');
+  const [selected, setSelected]           = useState<ProjectRequest | null>(null);
+  const [saving, setSaving]               = useState(false);
+  const [editStatus, setEditStatus]       = useState('');
+  const [editProgress, setEditProgress]   = useState('');
   const [editTotalCost, setEditTotalCost]   = useState('');
   const [editPaidAmount, setEditPaidAmount] = useState('');
+  const [editAssignedTeam, setEditAssignedTeam] = useState<string[]>([]);
 
   // Quick-action states
   const [approvingId, setApprovingId]   = useState<string | null>(null);
@@ -112,7 +117,7 @@ export default function ClientProjectRequests() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [deleting, setDeleting]         = useState(false);
 
-  // ── Fetch ────────────────────────────────────────────────────────────────
+  // ── Fetch requests ────────────────────────────────────────────────────────
 
   const fetchRequests = async () => {
     setError(null);
@@ -128,7 +133,22 @@ export default function ClientProjectRequests() {
     }
   };
 
-  useEffect(() => { fetchRequests(); }, []);
+  // ── Fetch team members (admin + team roles) ───────────────────────────────
+
+  const fetchTeamMembers = async () => {
+    try {
+      const res = await apiClient.get('/users');
+      const all: TeamMember[] = res.data.data ?? [];
+      setTeamMembers(all.filter(u => (u as any).role === 'team' || (u as any).role === 'admin'));
+    } catch {
+      // non-critical — team list just won't populate
+    }
+  };
+
+  useEffect(() => {
+    fetchRequests();
+    fetchTeamMembers();
+  }, []);
 
   // ── Quick: Approve ────────────────────────────────────────────────────────
 
@@ -136,8 +156,7 @@ export default function ClientProjectRequests() {
     setApprovingId(id);
     try {
       const res = await apiClient.patch(`/projects/${id}`, { status: 'approved' });
-      const updated: ProjectRequest = res.data.data;
-      setRequests(prev => prev.map(r => r._id === id ? updated : r));
+      setRequests(prev => prev.map(r => r._id === id ? res.data.data : r));
       toast.success('Project approved');
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Failed to approve');
@@ -152,8 +171,7 @@ export default function ClientProjectRequests() {
     setRejectingId(id);
     try {
       const res = await apiClient.patch(`/projects/${id}`, { status: 'rejected' });
-      const updated: ProjectRequest = res.data.data;
-      setRequests(prev => prev.map(r => r._id === id ? updated : r));
+      setRequests(prev => prev.map(r => r._id === id ? res.data.data : r));
       toast.success('Project rejected');
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Failed to reject');
@@ -187,6 +205,15 @@ export default function ClientProjectRequests() {
     setEditProgress(String(req.progress));
     setEditTotalCost(req.totalCost ? String(req.totalCost) : '');
     setEditPaidAmount(req.paidAmount ? String(req.paidAmount) : '');
+    setEditAssignedTeam((req.assignedTeam ?? []).map(m => m._id));
+  };
+
+  // ── Toggle team member ────────────────────────────────────────────────────
+
+  const toggleMember = (id: string) => {
+    setEditAssignedTeam(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
   };
 
   // ── Save full edit ────────────────────────────────────────────────────────
@@ -196,16 +223,16 @@ export default function ClientProjectRequests() {
     setSaving(true);
     try {
       const body: Record<string, any> = {
-        status:   editStatus,
-        progress: parseInt(editProgress) || 0,
+        status:       editStatus,
+        progress:     parseInt(editProgress) || 0,
+        assignedTeam: editAssignedTeam,
       };
       if (editTotalCost !== '')  body.totalCost  = parseFloat(editTotalCost);
       if (editPaidAmount !== '') body.paidAmount = parseFloat(editPaidAmount);
 
       const res = await apiClient.patch(`/projects/${selected._id}`, body);
-      const updated: ProjectRequest = res.data.data;
-      setRequests(prev => prev.map(r => r._id === updated._id ? updated : r));
-      toast.success('Project updated');
+      setRequests(prev => prev.map(r => r._id === selected._id ? res.data.data : r));
+      toast.success('Project updated & team assigned');
       setSelected(null);
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Failed to update');
@@ -240,7 +267,7 @@ export default function ClientProjectRequests() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Client Project Requests</h1>
-          <p className="text-muted-foreground">Review and manage project requests submitted by clients.</p>
+          <p className="text-muted-foreground">Review, manage, and assign project requests to your team.</p>
         </div>
         <Button variant="outline" size="sm" onClick={fetchRequests} className="gap-2">
           <RefreshCw className="h-4 w-4" /> Refresh
@@ -331,6 +358,7 @@ export default function ClientProjectRequests() {
                 <TableHead>Type</TableHead>
                 <TableHead>Budget</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Assigned To</TableHead>
                 <TableHead>Progress</TableHead>
                 <TableHead>Submitted</TableHead>
                 <TableHead className="text-center">Actions</TableHead>
@@ -339,15 +367,15 @@ export default function ClientProjectRequests() {
             <TableBody>
               {filtered.map(req => (
                 <TableRow key={req._id} className="hover:bg-muted/20">
-                  {/* Project name */}
-                  <TableCell className="font-semibold max-w-[160px]">
+                  {/* Project */}
+                  <TableCell className="font-semibold max-w-[150px]">
                     <p className="truncate">{req.projectName}</p>
                   </TableCell>
 
-                  {/* Client info */}
+                  {/* Client */}
                   <TableCell>
                     {req.requestedBy ? (
-                      <div className="flex items-center gap-2 min-w-[140px]">
+                      <div className="flex items-center gap-2 min-w-[130px]">
                         <Avatar className="h-7 w-7 shrink-0">
                           <AvatarFallback className="text-[10px] bg-primary/10 text-primary font-semibold">
                             {req.requestedBy.name.slice(0, 2).toUpperCase()}
@@ -369,11 +397,34 @@ export default function ClientProjectRequests() {
                   {/* Budget */}
                   <TableCell className="text-sm font-medium">{req.budgetRange}</TableCell>
 
-                  {/* Status badge */}
+                  {/* Status */}
                   <TableCell>
                     <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${STATUS_COLORS[req.status]}`}>
                       {STATUS_LABELS[req.status]}
                     </span>
+                  </TableCell>
+
+                  {/* Assigned team */}
+                  <TableCell>
+                    {req.assignedTeam?.length ? (
+                      <div className="flex -space-x-1.5">
+                        {req.assignedTeam.slice(0, 3).map(m => (
+                          <Avatar key={m._id} className="h-6 w-6 ring-2 ring-background" title={m.name}>
+                            <AvatarImage src={m.photo} />
+                            <AvatarFallback className="text-[9px] bg-primary/20 text-primary font-bold">
+                              {m.name.slice(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                        ))}
+                        {req.assignedTeam.length > 3 && (
+                          <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-[9px] font-bold ring-2 ring-background">
+                            +{req.assignedTeam.length - 3}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground italic">Unassigned</span>
+                    )}
                   </TableCell>
 
                   {/* Progress */}
@@ -397,55 +448,38 @@ export default function ClientProjectRequests() {
                   {/* Actions */}
                   <TableCell>
                     <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
-                      {/* Approve — only if pending or in_review */}
                       {(req.status === 'pending' || req.status === 'in_review') && (
                         <Button
-                          variant="ghost"
-                          size="icon"
+                          variant="ghost" size="icon"
                           className="h-8 w-8 text-green-500 hover:text-green-600 hover:bg-green-500/10"
                           title="Approve"
                           disabled={approvingId === req._id}
                           onClick={() => handleApprove(req._id)}
                         >
-                          {approvingId === req._id
-                            ? <Loader2 className="h-4 w-4 animate-spin" />
-                            : <Check className="h-4 w-4" />
-                          }
+                          {approvingId === req._id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                         </Button>
                       )}
-
-                      {/* Reject — only if pending or in_review or approved */}
                       {(req.status === 'pending' || req.status === 'in_review' || req.status === 'approved') && (
                         <Button
-                          variant="ghost"
-                          size="icon"
+                          variant="ghost" size="icon"
                           className="h-8 w-8 text-amber-500 hover:text-amber-600 hover:bg-amber-500/10"
                           title="Reject"
                           disabled={rejectingId === req._id}
                           onClick={() => handleReject(req._id)}
                         >
-                          {rejectingId === req._id
-                            ? <Loader2 className="h-4 w-4 animate-spin" />
-                            : <XCircle className="h-4 w-4" />
-                          }
+                          {rejectingId === req._id ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
                         </Button>
                       )}
-
-                      {/* Edit (full dialog) */}
                       <Button
-                        variant="ghost"
-                        size="icon"
+                        variant="ghost" size="icon"
                         className="h-8 w-8 text-muted-foreground hover:text-primary"
-                        title="Edit"
+                        title="Edit & Assign"
                         onClick={() => openDetail(req)}
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
-
-                      {/* Delete */}
                       <Button
-                        variant="ghost"
-                        size="icon"
+                        variant="ghost" size="icon"
                         className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                         title="Delete"
                         onClick={() => setDeleteTargetId(req._id)}
@@ -458,29 +492,27 @@ export default function ClientProjectRequests() {
               ))}
             </TableBody>
           </Table>
-
-          {/* Footer count */}
           <div className="px-4 py-3 border-t border-border/50 bg-muted/20 text-xs text-muted-foreground">
             Showing {filtered.length} of {total} request{total !== 1 ? 's' : ''}
           </div>
         </div>
       )}
 
-      {/* Full Edit Dialog */}
+      {/* Full Edit + Assign Dialog */}
       <Dialog open={!!selected} onOpenChange={open => !open && !saving && setSelected(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{selected?.projectName}</DialogTitle>
             <DialogDescription>
               {selected?.requestedBy
-                ? `Submitted by ${selected.requestedBy.name} (${selected.requestedBy.email}) · ${timeAgo(selected?.createdAt ?? '')}`
+                ? `Submitted by ${selected.requestedBy.name} · ${timeAgo(selected?.createdAt ?? '')}`
                 : `Submitted ${timeAgo(selected?.createdAt ?? '')}`
               }
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-5 py-2 max-h-[65vh] overflow-y-auto pr-1">
-            {/* Client info card */}
+            {/* Client card */}
             {selected?.requestedBy && (
               <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 border border-border/50">
                 <Avatar className="h-10 w-10">
@@ -502,19 +534,18 @@ export default function ClientProjectRequests() {
               </div>
             )}
 
-            {/* Project details */}
+            {/* Project info */}
             <div className="space-y-1">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Project Details</p>
               <p className="text-sm text-muted-foreground leading-relaxed">{selected?.projectDetails}</p>
             </div>
-
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="bg-secondary/30 rounded-lg p-3">
                 <p className="text-xs text-muted-foreground mb-1">Type</p>
                 <p className="font-medium">{selected?.projectType}</p>
               </div>
               <div className="bg-secondary/30 rounded-lg p-3">
-                <p className="text-xs text-muted-foreground mb-1">Budget Range</p>
+                <p className="text-xs text-muted-foreground mb-1">Budget</p>
                 <p className="font-medium">{selected?.budgetRange}</p>
               </div>
             </div>
@@ -525,13 +556,8 @@ export default function ClientProjectRequests() {
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Attachments</p>
                 <div className="space-y-1.5">
                   {selected.attachments.map(att => (
-                    <a
-                      key={att._id}
-                      href={att.fileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 p-2.5 rounded-lg bg-secondary/20 hover:bg-secondary/40 transition-colors text-sm"
-                    >
+                    <a key={att._id} href={att.fileUrl} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-2 p-2.5 rounded-lg bg-secondary/20 hover:bg-secondary/40 transition-colors text-sm">
                       <FileText className="h-4 w-4 text-primary shrink-0" />
                       <span className="truncate">{att.fileName}</span>
                     </a>
@@ -540,9 +566,10 @@ export default function ClientProjectRequests() {
               </div>
             ) : null}
 
-            {/* Admin controls */}
-            <div className="border-t border-border/50 pt-4 space-y-4">
+            {/* ── Admin Controls ──────────────────────────────────────────── */}
+            <div className="border-t border-border/50 pt-4 space-y-5">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Admin Controls</p>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Status</Label>
@@ -556,24 +583,78 @@ export default function ClientProjectRequests() {
                 </div>
                 <div className="space-y-2">
                   <Label>Progress (%)</Label>
-                  <Input type="number" min="0" max="100" value={editProgress} onChange={e => setEditProgress(e.target.value)} placeholder="0–100" />
+                  <Input type="number" min="0" max="100" value={editProgress}
+                    onChange={e => setEditProgress(e.target.value)} placeholder="0–100" />
                 </div>
                 <div className="space-y-2">
                   <Label>Total Cost ($)</Label>
-                  <Input type="number" min="0" value={editTotalCost} onChange={e => setEditTotalCost(e.target.value)} placeholder="e.g. 2500" />
+                  <Input type="number" min="0" value={editTotalCost}
+                    onChange={e => setEditTotalCost(e.target.value)} placeholder="e.g. 2500" />
                 </div>
                 <div className="space-y-2">
                   <Label>Paid Amount ($)</Label>
-                  <Input type="number" min="0" value={editPaidAmount} onChange={e => setEditPaidAmount(e.target.value)} placeholder="e.g. 1250" />
+                  <Input type="number" min="0" value={editPaidAmount}
+                    onChange={e => setEditPaidAmount(e.target.value)} placeholder="e.g. 1250" />
                 </div>
+              </div>
+
+              {/* ── Team Assignment ───────────────────────────────────────── */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <UserPlus className="h-4 w-4 text-primary" />
+                  <Label className="text-sm font-semibold">Assign Team Members</Label>
+                  {editAssignedTeam.length > 0 && (
+                    <span className="ml-auto text-xs text-primary font-medium bg-primary/10 px-2 py-0.5 rounded-full">
+                      {editAssignedTeam.length} selected
+                    </span>
+                  )}
+                </div>
+
+                {teamMembers.length === 0 ? (
+                  <p className="text-sm text-muted-foreground italic">No team members found.</p>
+                ) : (
+                  <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto">
+                    {teamMembers.map(member => {
+                      const isSelected = editAssignedTeam.includes(member._id);
+                      return (
+                        <div
+                          key={member._id}
+                          onClick={() => toggleMember(member._id)}
+                          className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                            isSelected
+                              ? 'border-primary bg-primary/5 shadow-sm'
+                              : 'border-border/50 hover:border-primary/40 hover:bg-muted/30'
+                          }`}
+                        >
+                          <Avatar className="h-9 w-9 shrink-0">
+                            <AvatarImage src={member.photo} />
+                            <AvatarFallback className={`text-sm font-bold ${isSelected ? 'bg-primary text-primary-foreground' : 'bg-primary/10 text-primary'}`}>
+                              {member.name.slice(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-sm truncate">{member.name}</p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {member.teamProfile?.position || member.teamProfile?.department || member.email}
+                            </p>
+                          </div>
+                          <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
+                            isSelected ? 'border-primary bg-primary' : 'border-muted-foreground/30'
+                          }`}>
+                            {isSelected && <Check className="h-3 w-3 text-white" />}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
           <DialogFooter className="gap-2">
             <Button
-              variant="destructive"
-              className="mr-auto gap-2"
+              variant="destructive" className="mr-auto gap-2"
               onClick={() => { setSelected(null); setDeleteTargetId(selected?._id ?? null); }}
               disabled={saving}
             >
@@ -581,7 +662,7 @@ export default function ClientProjectRequests() {
             </Button>
             <Button variant="outline" onClick={() => setSelected(null)} disabled={saving}>Cancel</Button>
             <Button onClick={handleSave} disabled={saving} className="gap-2">
-              {saving ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</> : <><Save className="h-4 w-4" /> Save Changes</>}
+              {saving ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</> : <><Save className="h-4 w-4" /> Save & Assign</>}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -55,6 +55,54 @@ const { t } = useLanguage();
 - Primary color via CSS var `--primary` (violet family)
 - Scroll reveals: `whileInView`, mount/unmount: `AnimatePresence`
 
+## Two Project Models — Do Not Confuse
+| Model | File | Purpose | API prefix |
+|---|---|---|---|
+| `Project` | `server/src/models/usersModels/Project.model.js` | **Client project requests** submitted by users | `/api/v1/projects` |
+| `AdminProject` | `server/src/models/adminModels/AdminProject.model.js` | **Agency portfolio** projects managed by admin | `/api/v1/admin/projects` |
+
+## Client Project Requests (`Project` model)
+- Fields: `projectName`, `projectType`, `budgetRange`, `projectDetails`, `status` (pending→in_review→approved/rejected→completed), `progress`, `deadline`, `totalCost`, `paidAmount`, `paymentStatus` (auto via pre-save hook), `attachments[]`, `requestedBy` (ref User), `assignedTeam[]` (ref User[]), `isArchived`
+- Role-based filtering in `getAllProjects`: admin sees all, team sees `assignedTeam` contains their ID, user sees `requestedBy` equals their ID
+- File uploads via Multer + Cloudinary; `deleteAttachment` removes from Cloudinary + DB
+
+## API Files (`client/src/api/`)
+| File | Base path | Key methods |
+|---|---|---|
+| `projects.api.ts` | `/projects` | `getAll`, `getStats`, `getById`, `create` (FormData), `delete` |
+| `adminProjects.api.ts` | `/admin/projects` | CRUD for portfolio projects |
+| `users.api.ts` | `/users` | `update` (FormData or JSON), `updatePassword` |
+| `auth.api.ts` | `/auth` | login, register, refresh |
+
+## Dashboard Pages
+
+### User Dashboard (`/user-dashboard`)
+| Page | File | Notes |
+|---|---|---|
+| Overview | `pages/user/UserDashboardHome.tsx` | Live stats from `projectsApi.getStats()`, recent 3 projects |
+| My Projects | `pages/user/UserProjects.tsx` | Full CRUD — create with file upload, list, delete (pending/rejected only) |
+| Profile | `pages/user/UserProfile.tsx` | Avatar upload, password change via `usersApi.updatePassword` |
+
+### Admin Dashboard (`/admin`)
+| Page | File | Notes |
+|---|---|---|
+| Client Requests | `pages/admin/ClientProjectRequests.tsx` | Approve/reject/delete requests; assign team members (checkbox picker with stacked avatar display); shows client name, email, submission date |
+
+### Team Dashboard (`/team`)
+| Page | File | Notes |
+|---|---|---|
+| Projects | `pages/team/TeamProjects.tsx` | Two tabs: "Client Requests" (assigned via `assignedTeam`) + "Portfolio Projects" (AdminProject); fetches both in parallel |
+| Client Request Detail | `pages/team/TeamClientRequestDetail.tsx` | Full detail view: description, attachments (clickable links), assigned team list, client info, payment info; route: `/team/client-requests/:id` |
+| Project Detail | `pages/team/TeamProjectDetail.tsx` | Detail view for AdminProject portfolio items; route: `/team/projects/:id` |
+
+## shadcn/ui `Select` — Important Gotcha
+The `Select` component in this codebase is a **native `<select>` wrapper**, NOT Radix UI.
+- **Wrong**: wrapping with `<SelectTrigger>`, `<SelectContent>`, `<SelectValue>` → causes `<div> cannot appear as child of <select>` DOM error
+- **Correct**: use `<SelectItem>` (renders `<option>`) directly as children of `<Select>`
+
+## `Tabs` Component — `onTabChange` Gotcha
+`Tabs` passes `onTabChange` via `React.cloneElement` to ALL children. `TabsContent` must destructure `onTabChange` from props to prevent it being spread to the DOM `<div>`.
+
 ## Git Rules
 - Branch: `main` → remote: `github.com/MuhammadNabeelJaved/nabeel-javed-agency`
 - **Never** stage `server/.claude/settings.local.json`
