@@ -280,6 +280,13 @@ export default function JobDetail() {
                     </Button>
                   </Link>
 
+                  <p className="text-xs text-center text-muted-foreground">
+                    By applying you agree to our{' '}
+                    <Link to="/careers/privacy" target="_blank" className="text-primary underline underline-offset-2 hover:opacity-80">
+                      Job Privacy Policy
+                    </Link>
+                  </p>
+
                   <div className="pt-6 border-t border-border/50">
                     <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">Share this role</span>
