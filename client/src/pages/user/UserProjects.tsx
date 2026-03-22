@@ -35,7 +35,7 @@ import {
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
+import { Select, SelectItem } from '../../components/ui/select';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { projectsApi } from '../../api/projects.api';
@@ -473,28 +473,24 @@ export default function UserProjects() {
             <div className="grid gap-2">
               <Label>Project Type *</Label>
               <Select value={formType} onValueChange={setFormType}>
-                <SelectTrigger><SelectValue placeholder="Select a type" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Web Development">Web Development</SelectItem>
-                  <SelectItem value="Mobile App Development">Mobile App Development</SelectItem>
-                  <SelectItem value="UI/UX Design">UI/UX Design</SelectItem>
-                  <SelectItem value="E-commerce">E-commerce</SelectItem>
-                  <SelectItem value="Branding">Branding</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
-                </SelectContent>
+                <SelectItem value="" disabled>Select a type</SelectItem>
+                <SelectItem value="Web Development">Web Development</SelectItem>
+                <SelectItem value="Mobile App Development">Mobile App Development</SelectItem>
+                <SelectItem value="UI/UX Design">UI/UX Design</SelectItem>
+                <SelectItem value="E-commerce">E-commerce</SelectItem>
+                <SelectItem value="Branding">Branding</SelectItem>
+                <SelectItem value="Other">Other</SelectItem>
               </Select>
             </div>
 
             <div className="grid gap-2">
               <Label>Budget Range *</Label>
               <Select value={formBudget} onValueChange={setFormBudget}>
-                <SelectTrigger><SelectValue placeholder="Select your budget" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="$100 - $500">$100 - $500</SelectItem>
-                  <SelectItem value="$500 - $1,000">$500 - $1,000</SelectItem>
-                  <SelectItem value="$1,000 - $5,000">$1,000 - $5,000</SelectItem>
-                  <SelectItem value="$5,000+">$5,000+</SelectItem>
-                </SelectContent>
+                <SelectItem value="" disabled>Select your budget</SelectItem>
+                <SelectItem value="$100 - $500">$100 - $500</SelectItem>
+                <SelectItem value="$500 - $1,000">$500 - $1,000</SelectItem>
+                <SelectItem value="$1,000 - $5,000">$1,000 - $5,000</SelectItem>
+                <SelectItem value="$5,000+">$5,000+</SelectItem>
               </Select>
             </div>
 
