@@ -3,17 +3,21 @@
  * Layout for team member area
  */
 import React, { useState, useRef, useEffect } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { TeamSidebar } from '../components/TeamSidebar';
 import { PageStatusGate } from '../components/PageStatusGate';
-import { Bell, Search, Check, AlertCircle, Info, Clock, X } from 'lucide-react';
+import { Bell, Search, Check, AlertCircle, Info, Clock, X, Menu } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export function TeamDashboardLayout() {
   const { theme } = useTheme();
+  const location = useLocation();
   const [showNotifications, setShowNotifications] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { setSidebarOpen(false); }, [location.pathname]);
 
   // Close notifications when clicking outside
   useEffect(() => {
@@ -64,17 +68,24 @@ export function TeamDashboardLayout() {
         <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-blue-500/10 rounded-full blur-[120px]" />
       </div>
 
-      <TeamSidebar />
-      
-      <div className="pl-20 lg:pl-72 relative z-10 transition-all duration-300">
+      <TeamSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
+      <div className="sm:pl-20 lg:pl-72 relative z-10 transition-all duration-300">
         {/* Topbar */}
-        <header className="h-20 px-8 flex items-center justify-between sticky top-0 z-30 backdrop-blur-md bg-background/50 border-b border-border/50">
-          <div className="flex items-center gap-4 w-full max-w-xl">
-            <div className="relative w-full group">
+        <header className="h-16 sm:h-20 px-4 sm:px-8 flex items-center justify-between sticky top-0 z-30 backdrop-blur-md bg-background/50 border-b border-border/50">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="sm:hidden p-2 rounded-lg hover:bg-accent text-muted-foreground shrink-0"
+              aria-label="Open menu"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <div className="relative hidden sm:block flex-1 max-w-xl group">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-              <input 
-                type="text" 
-                placeholder="Search tasks, projects..." 
+              <input
+                type="text"
+                placeholder="Search tasks, projects..."
                 className="w-full pl-10 pr-12 py-2.5 rounded-full bg-muted/50 border border-border/50 focus:border-primary/50 focus:bg-muted focus:ring-0 text-sm transition-all outline-none placeholder:text-muted-foreground"
               />
               <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-1 pointer-events-none">
@@ -83,8 +94,8 @@ export function TeamDashboardLayout() {
               </div>
             </div>
           </div>
-          
-          <div className="flex items-center space-x-6" ref={notificationRef}>
+
+          <div className="flex items-center gap-2 sm:gap-6 shrink-0" ref={notificationRef}>
             <div className="relative">
               <button 
                 onClick={() => setShowNotifications(!showNotifications)}
@@ -161,7 +172,7 @@ export function TeamDashboardLayout() {
               </AnimatePresence>
             </div>
             
-            <div className="flex items-center gap-3 pl-6 border-l border-border/50">
+            <div className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-6 border-l border-border/50">
               <div className="text-right hidden md:block">
                 <p className="text-sm font-medium text-foreground">Sarah Team</p>
                 <p className="text-xs text-muted-foreground">Senior Designer</p>
@@ -175,7 +186,7 @@ export function TeamDashboardLayout() {
           </div>
         </header>
 
-        <main className="p-8 max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <main className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
           <PageStatusGate hiddenRedirectTo="/team">
             <Outlet />
           </PageStatusGate>

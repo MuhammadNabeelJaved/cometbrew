@@ -10,21 +10,19 @@ import { Textarea } from '../../components/ui/textarea';
 import { FAQSection } from '../../components/FAQSection';
 import { MapPin, Phone, Mail, Clock, Send } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { Notification } from '../../components/Notification';
+import { toast } from 'sonner';
 import { useContent } from '../../contexts/ContentContext';
 import { contactsApi } from '../../api/contacts.api';
 
 export default function Contact() {
   const { contactInfo } = useContent();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
   const navigate = useNavigate();
   const formRef = useRef<HTMLFormElement>(null);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setSubmitError(null);
 
     const form = e.currentTarget;
     const data = {
@@ -39,7 +37,7 @@ export default function Contact() {
       await contactsApi.create(data);
       navigate('/contact/success');
     } catch (err: any) {
-      setSubmitError(err?.response?.data?.message || 'Failed to send your message. Please try again.');
+      toast.error('Submission Failed', { description: err?.response?.data?.message || 'Failed to send your message. Please try again.' });
     } finally {
       setIsSubmitting(false);
     }
@@ -65,8 +63,6 @@ export default function Contact() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
         {/* Contact Form */}
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} className="bg-card border border-border/50 rounded-2xl p-8 shadow-sm">
-          <Notification type="error" title="Submission Failed" message={submitError ?? undefined} isVisible={!!submitError} onClose={() => setSubmitError(null)} />
-
           <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">

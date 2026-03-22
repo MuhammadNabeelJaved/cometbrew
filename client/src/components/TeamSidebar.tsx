@@ -15,13 +15,20 @@ import {
   ChevronRight,
   Calendar,
   MessageSquare,
-  Files
+  Files,
+  HelpCircle,
+  X,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { usePageVisibility } from '../hooks/usePageVisibility';
 
-export function TeamSidebar() {
+interface TeamSidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export function TeamSidebar({ isOpen = false, onClose }: TeamSidebarProps) {
   const location = useLocation();
   const { isVisible } = usePageVisibility();
 
@@ -35,12 +42,34 @@ export function TeamSidebar() {
     { name: 'Reports', path: '/team/reports', icon: BarChart2 },
     { name: 'Notifications', path: '/team/notifications', icon: Bell },
     { name: 'Settings', path: '/team/settings', icon: Settings },
+    { name: 'Support', path: '/team/support', icon: HelpCircle },
   ].filter(link => isVisible(link.path));
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-20 lg:w-72 bg-background/80 backdrop-blur-xl border-r border-border/50 z-40 transition-all duration-300 flex flex-col">
+    <>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 z-30 sm:hidden"
+            onClick={onClose}
+          />
+        )}
+      </AnimatePresence>
+
+      <aside className={cn(
+        "fixed left-0 top-0 h-screen bg-background/80 backdrop-blur-xl border-r border-border/50 z-40 transition-all duration-300 flex flex-col w-72",
+        isOpen ? "translate-x-0" : "-translate-x-full",
+        "sm:translate-x-0 sm:w-20",
+        "lg:w-72"
+      )}>
+      {isOpen && (
+        <button onClick={onClose} className="absolute top-4 right-4 sm:hidden p-1.5 rounded-lg hover:bg-accent text-muted-foreground">
+          <X className="h-4 w-4" />
+        </button>
+      )}
       {/* Logo */}
-      <div className="h-20 flex items-center justify-center lg:justify-start lg:px-6 border-b border-border/50">
+      <div className="h-16 sm:h-20 flex items-center justify-center lg:justify-start lg:px-6 border-b border-border/50">
          <Link to="/" className="flex items-center gap-3 group">
              <img 
                 src="https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/uploads/216147d0-06c1-4dee-8a5a-f933c6ef8556/1766429553723-26c2f3fe/N_Logo-01.png" 
@@ -93,8 +122,8 @@ export function TeamSidebar() {
 
       {/* Footer Actions */}
       <div className="p-4 border-t border-border/50 mt-auto">
-        <Link 
-          to="/" 
+        <Link
+          to="/"
           className="flex items-center gap-3 px-3 lg:px-4 py-3 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors group"
         >
           <LogOut className="h-5 w-5 group-hover:-translate-x-1 transition-transform" />
@@ -102,5 +131,6 @@ export function TeamSidebar() {
         </Link>
       </div>
     </aside>
+    </>
   );
 }

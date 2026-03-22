@@ -3,18 +3,22 @@
  * Layout wrapper for user dashboard pages.
  */
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate, Outlet } from 'react-router-dom';
+import { useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { UserSidebar } from '../components/UserSidebar';
 import { PageStatusGate } from '../components/PageStatusGate';
-import { Bell, Search, Check, AlertCircle, Info, Clock, X, MessageSquare } from 'lucide-react';
+import { Bell, Search, Check, AlertCircle, Info, Clock, X, MessageSquare, Menu } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export function UserDashboardLayout() {
   const { theme } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
   const [showNotifications, setShowNotifications] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { setSidebarOpen(false); }, [location.pathname]);
 
   // Close notifications when clicking outside
   useEffect(() => {
@@ -73,25 +77,32 @@ export function UserDashboardLayout() {
         <div className="absolute bottom-[-20%] left-[-10%] w-[50%] h-[50%] bg-blue-500/5 rounded-full blur-[120px]" />
       </div>
 
-      <UserSidebar />
-      
-      <div className="pl-20 lg:pl-72 relative z-10 transition-all duration-300">
+      <UserSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
+      <div className="sm:pl-20 lg:pl-72 relative z-10 transition-all duration-300">
         {/* Topbar */}
-        <header className="h-20 px-8 flex items-center justify-between sticky top-0 z-30 backdrop-blur-md bg-background/50 border-b border-border/50">
-          <div className="flex items-center gap-4 w-full max-w-xl">
-             <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-600">
-                User Dashboard
-             </h1>
-          </div>
-          
-          <div className="flex items-center space-x-6" ref={notificationRef}>
-            {/* Quick Chat Button */}
-            <button 
-                onClick={() => navigate('/user-dashboard/messages')}
-                className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+        <header className="h-16 sm:h-20 px-4 sm:px-8 flex items-center justify-between sticky top-0 z-30 backdrop-blur-md bg-background/50 border-b border-border/50">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="sm:hidden p-2 rounded-lg hover:bg-accent text-muted-foreground shrink-0"
+              aria-label="Open menu"
             >
-                <MessageSquare className="h-4 w-4" />
-                <span className="text-sm font-medium">Support Chat</span>
+              <Menu className="h-5 w-5" />
+            </button>
+            <h1 className="text-lg sm:text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-600 truncate">
+              User Dashboard
+            </h1>
+          </div>
+
+          <div className="flex items-center gap-2 sm:gap-4 shrink-0" ref={notificationRef}>
+            {/* Quick Chat Button */}
+            <button
+              onClick={() => navigate('/user-dashboard/messages')}
+              className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+            >
+              <MessageSquare className="h-4 w-4" />
+              <span className="text-sm font-medium">Support Chat</span>
             </button>
 
             <div className="relative">
@@ -170,7 +181,7 @@ export function UserDashboardLayout() {
               </AnimatePresence>
             </div>
             
-            <div className="flex items-center gap-3 pl-6 border-l border-border/50">
+            <div className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-6 border-l border-border/50">
               <div className="text-right hidden md:block">
                 <p className="text-sm font-medium text-foreground">Alex Morgan</p>
                 <p className="text-xs text-muted-foreground">User</p>
@@ -184,7 +195,7 @@ export function UserDashboardLayout() {
           </div>
         </header>
 
-        <main className="p-8 max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <main className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
           <PageStatusGate hiddenRedirectTo="/user-dashboard">
             <Outlet />
           </PageStatusGate>

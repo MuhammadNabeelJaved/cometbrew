@@ -11,7 +11,7 @@ import { Label } from '../../components/ui/label';
 import { Button } from '../../components/ui/button';
 import { Textarea } from '../../components/ui/textarea';
 import { Plus, Trash2, Save, Star } from 'lucide-react';
-import { Notification } from '../../components/Notification';
+import { toast } from 'sonner';
 import { homepageApi } from '../../api/homepage.api';
 
 export default function ContentEditor() {
@@ -26,7 +26,6 @@ export default function ContentEditor() {
   } = useContent();
 
   const [activeTab, setActiveTab] = useState("hero");
-  const [notification, setNotification] = useState<{ type: 'success' | 'error'; title: string } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   // Hero state (HomePageHero API)
@@ -43,18 +42,13 @@ export default function ContentEditor() {
     }
   }, [activeTab, heroLoaded]);
 
-  const showNotification = (type: 'success' | 'error', title: string) => {
-    setNotification({ type, title });
-    setTimeout(() => setNotification(null), 3000);
-  };
-
   const saveWithFeedback = async (fn: () => Promise<void>) => {
     setIsSaving(true);
     try {
       await fn();
-      showNotification('success', 'Saved successfully');
+      toast.success('Saved successfully');
     } catch {
-      showNotification('error', 'Save failed');
+      toast.error('Save failed');
     } finally {
       setIsSaving(false);
     }
@@ -133,8 +127,6 @@ export default function ContentEditor() {
 
   return (
     <div className="space-y-6 pb-20">
-      {notification && <Notification type={notification.type} title={notification.title} onClose={() => setNotification(null)} />}
-
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Content Management</h1>

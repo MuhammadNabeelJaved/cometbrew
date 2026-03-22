@@ -49,7 +49,7 @@ import {
 import { Badge } from '../../components/ui/badge';
 import { Label } from '../../components/ui/label';
 import { Select, SelectItem } from '../../components/ui/select';
-import { Notification } from '../../components/Notification';
+import { toast } from 'sonner';
 import { jobsApi } from '../../api/jobs.api';
 import ConfirmDeleteDialog from '../../components/ui/ConfirmDeleteDialog';
 
@@ -62,12 +62,6 @@ export default function JobManagement() {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
-  const [notification, setNotification] = useState<{ type: 'success' | 'error'; title: string; message?: string } | null>(null);
-
-  const showNotification = (type: 'success' | 'error', title: string, message?: string) => {
-    setNotification({ type, title, message });
-    setTimeout(() => setNotification(null), 4000);
-  };
 
   const loadJobs = async () => {
     setLoading(true);
@@ -76,7 +70,7 @@ export default function JobManagement() {
       const data = response.data.data;
       setJobs(data?.jobs || (Array.isArray(data) ? data : []));
     } catch (err: any) {
-      showNotification('error', 'Failed to load jobs', err?.response?.data?.message || 'Could not connect to the server.');
+      toast.error('Failed to load jobs', { description: err?.response?.data?.message || 'Could not connect to the server.' });
     } finally {
       setLoading(false);
     }
@@ -120,11 +114,11 @@ export default function JobManagement() {
     if (!deleteTargetId) return;
     try {
       await jobsApi.delete(deleteTargetId);
-      showNotification('success', 'Job deleted', 'The position has been removed.');
+      toast.success('Job deleted', { description: 'The position has been removed.' });
       setDeleteTargetId(null);
       loadJobs();
     } catch (err: any) {
-      showNotification('error', 'Delete failed', err?.response?.data?.message || 'Could not delete the job.');
+      toast.error('Delete failed', { description: err?.response?.data?.message || 'Could not delete the job.' });
       setDeleteTargetId(null);
     }
   };
@@ -137,15 +131,15 @@ export default function JobManagement() {
       if (isEditing) {
         const id = (currentJob as any)._id || currentJob.id;
         await jobsApi.update(id, currentJob);
-        showNotification('success', 'Job updated', 'Changes have been saved.');
+        toast.success('Job updated', { description: 'Changes have been saved.' });
       } else {
         await jobsApi.create(currentJob);
-        showNotification('success', 'Job created', 'New position has been posted.');
+        toast.success('Job created', { description: 'New position has been posted.' });
       }
       setIsDialogOpen(false);
       loadJobs();
     } catch (err: any) {
-      showNotification('error', 'Save failed', err?.response?.data?.message || 'Could not save the job.');
+      toast.error('Save failed', { description: err?.response?.data?.message || 'Could not save the job.' });
     } finally {
       setIsSaving(false);
     }
@@ -158,7 +152,7 @@ export default function JobManagement() {
       await jobsApi.updateStatus(id, newStatus);
       loadJobs();
     } catch (err: any) {
-      showNotification('error', 'Status update failed', err?.response?.data?.message || 'Could not update job status.');
+      toast.error('Status update failed', { description: err?.response?.data?.message || 'Could not update job status.' });
     }
   };
 
@@ -172,15 +166,6 @@ export default function JobManagement() {
 
   return (
     <div className="space-y-8 p-6 max-w-7xl mx-auto">
-      {notification && (
-        <Notification
-          type={notification.type}
-          title={notification.title}
-          message={notification.message}
-          onClose={() => setNotification(null)}
-        />
-      )}
-
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Job Listings</h1>

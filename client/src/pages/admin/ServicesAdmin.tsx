@@ -21,7 +21,7 @@ import { Button } from '../../components/ui/button';
 import { Card, CardContent } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { ServiceEditor, ServiceData } from './ServiceEditor';
-import { Notification } from '../../components/Notification';
+import { toast } from 'sonner';
 import { servicesApi } from '../../api/services.api';
 import ConfirmDeleteDialog from '../../components/ui/ConfirmDeleteDialog';
 
@@ -42,12 +42,6 @@ export default function ServicesAdmin() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [notification, setNotification] = useState<{ type: 'success' | 'error'; title: string; message?: string } | null>(null);
-
-  const showNotification = (type: 'success' | 'error', title: string, message?: string) => {
-    setNotification({ type, title, message });
-    setTimeout(() => setNotification(null), 4000);
-  };
 
   useEffect(() => {
     loadServices();
@@ -65,7 +59,7 @@ export default function ServicesAdmin() {
       }));
       setServices(mapped);
     } catch (err: any) {
-      showNotification('error', 'Failed to load services', err?.response?.data?.message || 'Could not connect to the server.');
+      toast.error('Failed to load services', { description: err?.response?.data?.message || 'Could not connect to the server.' });
     } finally {
       setIsLoading(false);
     }
@@ -121,25 +115,25 @@ export default function ServicesAdmin() {
     try {
       await servicesApi.delete(id);
       setServices(prev => prev.filter(s => ((s as any)._id || String(s.id)) !== id));
-      showNotification('success', 'Service deleted', 'The service has been removed.');
+      toast.success('Service deleted', { description: 'The service has been removed.' });
       setDeleteTarget(null);
     } catch (err: any) {
-      showNotification('error', 'Delete failed', err?.response?.data?.message || 'Could not delete the service.');
+      toast.error('Delete failed', { description: err?.response?.data?.message || 'Could not delete the service.' });
       setDeleteTarget(null);
     }
   };
 
   const handleSave = async (savedService: ServiceData) => {
     if (!savedService.title?.trim()) {
-      showNotification('error', 'Validation Error', 'Service Name is required.');
+      toast.error('Validation Error', { description: 'Service Name is required.' });
       return;
     }
     if (!savedService.slug?.trim()) {
-      showNotification('error', 'Validation Error', 'Slug (URL) is required.');
+      toast.error('Validation Error', { description: 'Slug (URL) is required.' });
       return;
     }
     if (!savedService.shortDescription?.trim()) {
-      showNotification('error', 'Validation Error', 'Short Description is required.');
+      toast.error('Validation Error', { description: 'Short Description is required.' });
       return;
     }
 
@@ -185,16 +179,16 @@ export default function ServicesAdmin() {
             return sid === id ? { ...updated, id: updated._id || updated.id } : s;
           })
         );
-        showNotification('success', 'Service updated', 'Changes have been saved.');
+        toast.success('Service updated', { description: 'Changes have been saved.' });
       } else {
         const response = await servicesApi.create(payload);
         const created = response.data.data;
         setServices(prev => [...prev, { ...created, id: created._id || created.id }]);
-        showNotification('success', 'Service created', 'New service has been added.');
+        toast.success('Service created', { description: 'New service has been added.' });
       }
       setView('list');
     } catch (err: any) {
-      showNotification('error', 'Save failed', err?.response?.data?.message || 'Could not save the service.');
+      toast.error('Save failed', { description: err?.response?.data?.message || 'Could not save the service.' });
     } finally {
       setIsSaving(false);
     }
@@ -212,14 +206,6 @@ export default function ServicesAdmin() {
   if (view === 'edit') {
     return (
       <>
-        {notification && (
-          <Notification
-            type={notification.type}
-            title={notification.title}
-            message={notification.message}
-            onClose={() => setNotification(null)}
-          />
-        )}
         <ServiceEditor
           service={editingService}
           onSave={handleSave}
@@ -232,15 +218,6 @@ export default function ServicesAdmin() {
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {notification && (
-        <Notification
-          type={notification.type}
-          title={notification.title}
-          message={notification.message}
-          onClose={() => setNotification(null)}
-        />
-      )}
-
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Services</h1>

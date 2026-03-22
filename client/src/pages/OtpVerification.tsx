@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ShieldCheck, ArrowRight, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Notification } from '../components/Notification';
+import { toast } from 'sonner';
 import { Button } from '../components/ui/button';
 
 export default function OtpVerification() {
@@ -21,6 +21,14 @@ export default function OtpVerification() {
     }
     return () => clearInterval(interval);
   }, [timer, isVerified]);
+
+  useEffect(() => {
+    if (otpError) toast.error('Verification Failed', { description: otpError });
+  }, [otpError]);
+
+  useEffect(() => {
+    if (isVerified) toast.success('Successfully Verified!', { description: 'Your email has been confirmed. Redirecting you to the dashboard...' });
+  }, [isVerified]);
 
   const handleChange = (element: HTMLInputElement, index: number) => {
     if (isNaN(Number(element.value))) return false;
@@ -101,14 +109,6 @@ export default function OtpVerification() {
 
           {!isVerified ? (
             <div className="space-y-6">
-              <Notification
-                type="error"
-                title="Verification Failed"
-                message={otpError ?? undefined}
-                isVisible={!!otpError}
-                onClose={() => setOtpError(null)}
-              />
-
               <div className="flex justify-between gap-2">
                 {otp.map((data, index) => (
                   <input
@@ -158,12 +158,6 @@ export default function OtpVerification() {
               animate={{ scale: 1, opacity: 1 }}
               className="py-6 space-y-6"
             >
-              <Notification
-                type="success"
-                title="Successfully Verified!"
-                message="Your email has been confirmed. Redirecting you to the dashboard..."
-                isVisible
-              />
               <div className="w-full h-1 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
                 <motion.div
                   initial={{ width: '0%' }}

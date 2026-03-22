@@ -12,6 +12,8 @@ import { AuthProvider } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { GlobalStyles } from './components/GlobalStyles';
+import { Toaster } from 'sonner';
+import { useTheme } from './contexts/ThemeContext';
 import { PublicLayout } from './layouts/PublicLayout';
 import { DashboardLayout } from './layouts/DashboardLayout';
 
@@ -88,6 +90,7 @@ import TeamCalendar from './pages/team/TeamCalendar';
 import TeamChat from './pages/team/TeamChat';
 import TeamResources from './pages/team/TeamResources';
 import TeamClientRequestDetail from './pages/team/TeamClientRequestDetail';
+import TeamSupport from './pages/team/TeamSupport';
 
 // User Dashboard Pages
 import { UserDashboardLayout } from './layouts/UserDashboardLayout';
@@ -98,6 +101,7 @@ import UserAIChat from './pages/user/UserAIChat';
 import UserProfile from './pages/user/UserProfile';
 import UserNotifications from './pages/user/UserNotifications';
 import UserAppliedJobs from './pages/user/UserAppliedJobs';
+import UserSupport from './pages/user/UserSupport';
 
 import { CookieConsent } from './components/CookieConsent';
 
@@ -158,6 +162,18 @@ const configureTailwind = () => {
   }
 };
 
+function ToasterWrapper() {
+  const { theme } = useTheme();
+  return (
+    <Toaster
+      richColors
+      position="top-right"
+      theme={theme as 'light' | 'dark' | 'system'}
+      duration={4000}
+    />
+  );
+}
+
 export default function App() {
   useEffect(() => {
     configureTailwind();
@@ -169,6 +185,7 @@ export default function App() {
       <AuthProvider>
       <ContentProvider>
         <GlobalStyles />
+        <ToasterWrapper />
         <div className="min-h-screen bg-background text-foreground font-sans antialiased">
           <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             <CookieConsent />
@@ -261,6 +278,7 @@ export default function App() {
                 <Route path="resources" element={<TeamResources />} />
                 <Route path="notifications" element={<TeamNotifications />} />
                 <Route path="settings" element={<TeamSettings />} />
+                <Route path="support" element={<TeamSupport />} />
               </Route>
 
               {/* User Dashboard Routes */}
@@ -276,6 +294,7 @@ export default function App() {
                 <Route path="applied-jobs" element={<UserAppliedJobs />} />
                 <Route path="profile" element={<UserProfile />} />
                 <Route path="notifications" element={<UserNotifications />} />
+                <Route path="support" element={<UserSupport />} />
               </Route>
             </Routes>
           </BrowserRouter>

@@ -2,13 +2,13 @@
  * Login Page
  * Split screen layout with abstract graphics
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Zap, ArrowLeft, Github, Mail } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { Notification } from '../../components/Notification';
+import { toast } from 'sonner';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -20,6 +20,12 @@ export default function Login() {
   const [submitting, setSubmitting] = useState(false);
 
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname ?? null;
+
+  useEffect(() => {
+    if (error) {
+      toast.error('Login Failed', { description: error });
+    }
+  }, [error]);
 
   const getDashboardPath = (role: string) => {
     if (role === 'admin') return '/admin';
@@ -91,14 +97,6 @@ export default function Login() {
               Enter your email below to access your admin panel
             </p>
           </div>
-
-          <Notification
-            type="error"
-            title="Login Failed"
-            message={error ?? undefined}
-            isVisible={!!error}
-            onClose={clearError}
-          />
 
           <form onSubmit={handleLogin} className="space-y-6">
             <div className="space-y-2">

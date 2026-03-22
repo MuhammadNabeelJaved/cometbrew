@@ -25,7 +25,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '../../components/ui/select';
-import { Notification } from '../../components/Notification';
+import { toast } from 'sonner';
 import { clientsApi } from '../../api/clients.api';
 import ConfirmDeleteDialog from '../../components/ui/ConfirmDeleteDialog';
 import apiClient from '../../api/apiClient';
@@ -104,8 +104,6 @@ export default function ClientManagement() {
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
-  const [notification, setNotification] = useState<{ type: 'success' | 'error'; title: string; message?: string } | null>(null);
-
   // Form dialog
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
@@ -117,12 +115,6 @@ export default function ClientManagement() {
   // Delete
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  // ── helpers ──
-  const showNotification = (type: 'success' | 'error', title: string, message?: string) => {
-    setNotification({ type, title, message });
-    setTimeout(() => setNotification(null), 4000);
-  };
-
   const loadClients = async () => {
     setIsLoading(true);
     try {
@@ -133,11 +125,11 @@ export default function ClientManagement() {
       const status = err?.response?.status;
       const msg = err?.response?.data?.message;
       if (status === 401 || status === 403) {
-        showNotification('error', 'Access denied', 'Please log in as admin and try again.');
+        toast.error('Access denied', { description: 'Please log in as admin and try again.' });
       } else if (!err?.response) {
-        showNotification('error', 'Cannot connect to server', 'Make sure the backend server is running on port 8000.');
+        toast.error('Cannot connect to server', { description: 'Make sure the backend server is running on port 8000.' });
       } else {
-        showNotification('error', 'Failed to load clients', msg || `Server error (${status}).`);
+        toast.error('Failed to load clients', { description: msg || `Server error (${status}).` });
       }
     } finally {
       setIsLoading(false);
@@ -208,15 +200,15 @@ export default function ClientManagement() {
 
       if (editingClient) {
         await clientsApi.update(editingClient._id, payload);
-        showNotification('success', 'Client updated', 'Changes saved successfully.');
+        toast.success('Client updated', { description: 'Changes saved successfully.' });
       } else {
         await clientsApi.create(payload);
-        showNotification('success', 'Client created', 'New client added to directory.');
+        toast.success('Client created', { description: 'New client added to directory.' });
       }
       setIsFormOpen(false);
       loadClients();
     } catch (err: any) {
-      showNotification('error', 'Save failed', err?.response?.data?.message || 'Could not save client.');
+      toast.error('Save failed', { description: err?.response?.data?.message || 'Could not save client.' });
     } finally {
       setIsSaving(false);
     }
@@ -230,9 +222,9 @@ export default function ClientManagement() {
       if (detailClient?._id === client._id) {
         setDetailClient({ ...detailClient, status: newStatus as any });
       }
-      showNotification('success', 'Status updated', `${client.companyName} → ${newStatus}`);
+      toast.success('Status updated', { description: `${client.companyName} → ${newStatus}` });
     } catch (err: any) {
-      showNotification('error', 'Update failed', err?.response?.data?.message);
+      toast.error('Update failed', { description: err?.response?.data?.message });
     }
   };
 
@@ -242,10 +234,10 @@ export default function ClientManagement() {
     setIsSeeding(true);
     try {
       await apiClient.post('/devseed', { force: false });
-      showNotification('success', 'Demo data seeded!', '10 sample clients added to the database.');
+      toast.success('Demo data seeded!', { description: '10 sample clients added to the database.' });
       loadClients();
     } catch (err: any) {
-      showNotification('error', 'Seeding failed', err?.response?.data?.message || 'Could not seed demo data.');
+      toast.error('Seeding failed', { description: err?.response?.data?.message || 'Could not seed demo data.' });
     } finally {
       setIsSeeding(false);
     }
@@ -256,12 +248,12 @@ export default function ClientManagement() {
     if (!deleteId) return;
     try {
       await clientsApi.delete(deleteId);
-      showNotification('success', 'Client archived', 'Client removed from active directory.');
+      toast.success('Client archived', { description: 'Client removed from active directory.' });
       setDeleteId(null);
       if (detailClient?._id === deleteId) setDetailClient(null);
       loadClients();
     } catch (err: any) {
-      showNotification('error', 'Delete failed', err?.response?.data?.message);
+      toast.error('Delete failed', { description: err?.response?.data?.message });
       setDeleteId(null);
     }
   };
@@ -275,15 +267,6 @@ export default function ClientManagement() {
   // ─── RENDER ───────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
-      {notification && (
-        <Notification
-          type={notification.type}
-          title={notification.title}
-          message={notification.message}
-          onClose={() => setNotification(null)}
-        />
-      )}
-
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>

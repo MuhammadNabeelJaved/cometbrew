@@ -11,7 +11,7 @@ import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
-import { Notification } from '../../components/Notification';
+import { toast } from 'sonner';
 import { adminProjectsApi } from '../../api/adminProjects.api';
 import { useAuth } from '../../contexts/AuthContext';
 import ConfirmDeleteDialog from '../../components/ui/ConfirmDeleteDialog';
@@ -132,11 +132,10 @@ export default function Projects() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const [viewProject, setViewProject] = useState<any | null>(null);
-  const [notification, setNotification] = useState<{ type: 'success' | 'error'; title: string; message?: string } | null>(null);
 
   const showNotif = (type: 'success' | 'error', title: string, message?: string) => {
-    setNotification({ type, title, message });
-    setTimeout(() => setNotification(null), 4000);
+    if (type === 'success') toast.success(title, message ? { description: message } : undefined);
+    else toast.error(title, message ? { description: message } : undefined);
   };
 
   const loadProjects = async () => {
@@ -234,10 +233,6 @@ export default function Projects() {
 
   return (
     <div className="space-y-6 pb-10">
-      {notification && (
-        <Notification type={notification.type} title={notification.title} message={notification.message} isVisible onClose={() => setNotification(null)} />
-      )}
-
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -293,6 +288,7 @@ export default function Projects() {
               {projects.length === 0 ? 'No projects yet. Add your first project!' : 'No projects match your filters.'}
             </div>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -356,6 +352,7 @@ export default function Projects() {
                 })}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

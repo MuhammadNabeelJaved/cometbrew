@@ -2,13 +2,13 @@
  * Signup Page
  * Registration page with split screen layout
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Zap, ArrowLeft, Github, Mail, User, Lock } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { Notification } from '../../components/Notification';
+import { toast } from 'sonner';
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -20,6 +20,12 @@ export default function Signup() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (error || localError) {
+      toast.error('Registration Failed', { description: localError ?? error ?? undefined });
+    }
+  }, [error, localError]);
 
   const getDashboardPath = (role: string) => {
     if (role === 'admin') return '/admin';
@@ -102,14 +108,6 @@ export default function Signup() {
               Enter your details below to get started
             </p>
           </div>
-
-          <Notification
-            type="error"
-            title="Registration Failed"
-            message={localError ?? error ?? undefined}
-            isVisible={!!(error || localError)}
-            onClose={() => { clearError(); setLocalError(null); }}
-          />
 
           <form onSubmit={handleSignup} className="space-y-6">
             <div className="space-y-2">

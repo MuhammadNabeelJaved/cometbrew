@@ -17,7 +17,7 @@ import { Label } from '../../components/ui/label';
 import { Select, SelectItem } from '../../components/ui/select';
 import { useContent } from '../../contexts/ContentContext';
 import { pageStatusApi, type PageStatusItem, type CreatePagePayload } from '../../api/pageStatus.api';
-import { Notification } from '../../components/Notification';
+import { toast } from 'sonner';
 
 // ─── Status config ─────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
@@ -416,16 +416,10 @@ export default function PageManager() {
   const { pageStatuses, setPageStatuses } = useContent();
   const [updating, setUpdating] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
-  const [notification, setNotification] = useState<{ type: 'success' | 'error'; title: string; message?: string } | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
-
-  const showNotification = (type: 'success' | 'error', title: string, message?: string) => {
-    setNotification({ type, title, message });
-    setTimeout(() => setNotification(null), 3500);
-  };
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -433,7 +427,7 @@ export default function PageManager() {
       const res = await pageStatusApi.getAll();
       setPageStatuses(res.data.data ?? []);
     } catch {
-      showNotification('error', 'Failed to refresh', 'Could not load page statuses.');
+      toast.error('Failed to refresh', { description: 'Could not load page statuses.' });
     } finally {
       setIsRefreshing(false);
     }
@@ -446,9 +440,9 @@ export default function PageManager() {
       const res = await pageStatusApi.update(page.key, newStatus);
       const updated = (res.data as any).data as PageStatusItem;
       setPageStatuses(prev => prev.map(p => p.key === page.key ? { ...p, status: newStatus, updatedAt: updated.updatedAt } : p));
-      showNotification('success', `${page.label} → ${STATUS_CONFIG[newStatus].label}`, 'Page status updated.');
+      toast.success(`${page.label} → ${STATUS_CONFIG[newStatus].label}`, { description: 'Page status updated.' });
     } catch (err: any) {
-      showNotification('error', 'Update failed', err?.response?.data?.message || 'Could not update status.');
+      toast.error('Update failed', { description: err?.response?.data?.message || 'Could not update status.' });
     } finally {
       setUpdating(null);
     }
@@ -461,9 +455,9 @@ export default function PageManager() {
       const created = (res.data as any).data as PageStatusItem;
       setPageStatuses(prev => [...prev, created]);
       setShowAddDialog(false);
-      showNotification('success', `"${created.label}" added`, 'Custom page created successfully.');
+      toast.success(`"${created.label}" added`, { description: 'Custom page created successfully.' });
     } catch (err: any) {
-      showNotification('error', 'Create failed', err?.response?.data?.message || 'Could not create page.');
+      toast.error('Create failed', { description: err?.response?.data?.message || 'Could not create page.' });
     } finally {
       setIsSaving(false);
     }
@@ -474,9 +468,9 @@ export default function PageManager() {
     try {
       await pageStatusApi.delete(key);
       setPageStatuses(prev => prev.filter(p => p.key !== key));
-      showNotification('success', 'Page removed', 'Custom page deleted.');
+      toast.success('Page removed', { description: 'Custom page deleted.' });
     } catch (err: any) {
-      showNotification('error', 'Delete failed', err?.response?.data?.message || 'Could not delete page.');
+      toast.error('Delete failed', { description: err?.response?.data?.message || 'Could not delete page.' });
     } finally {
       setDeleting(null);
       setConfirmDeleteKey(null);
@@ -490,9 +484,9 @@ export default function PageManager() {
       const res = await pageStatusApi.toggleVisibility(page.key, newHidden);
       const updated = (res.data as any).data as PageStatusItem;
       setPageStatuses(prev => prev.map(p => p.key === page.key ? { ...p, isHidden: newHidden, updatedAt: updated.updatedAt } : p));
-      showNotification('success', newHidden ? `"${page.label}" hidden` : `"${page.label}" visible`, newHidden ? 'Page is now hidden from visitors.' : 'Page is now visible to visitors.');
+      toast.success(newHidden ? `"${page.label}" hidden` : `"${page.label}" visible`, { description: newHidden ? 'Page is now hidden from visitors.' : 'Page is now visible to visitors.' });
     } catch (err: any) {
-      showNotification('error', 'Update failed', err?.response?.data?.message || 'Could not update visibility.');
+      toast.error('Update failed', { description: err?.response?.data?.message || 'Could not update visibility.' });
     } finally {
       setUpdating(null);
     }
@@ -512,15 +506,6 @@ export default function PageManager() {
 
   return (
     <div className="space-y-6">
-      {notification && (
-        <Notification
-          type={notification.type}
-          title={notification.title}
-          message={notification.message}
-          onClose={() => setNotification(null)}
-        />
-      )}
-
       {showAddDialog && (
         <AddPageDialog
           onClose={() => setShowAddDialog(false)}

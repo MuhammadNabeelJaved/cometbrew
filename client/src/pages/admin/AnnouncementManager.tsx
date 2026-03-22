@@ -17,7 +17,7 @@ import { Textarea } from '../../components/ui/textarea';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '../../components/ui/dialog';
-import { Notification } from '../../components/Notification';
+import { toast } from 'sonner';
 import { announcementsApi, type AnnouncementItem, type AnnouncementPayload } from '../../api/announcements.api';
 import { announcementBarsApi, type AnnouncementBarConfig, type AnnouncementBarGroup } from '../../api/announcementBars.api';
 import { useContent } from '../../contexts/ContentContext';
@@ -755,8 +755,6 @@ export default function AnnouncementManager() {
   const [barGroups, setBarGroups] = useState<AnnouncementBarGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [notification, setNotification] = useState<{ type: 'success' | 'error'; title: string; message?: string } | null>(null);
-
   // Announcement form state
   const [annFormOpen, setAnnFormOpen] = useState(false);
   const [annFormBarId, setAnnFormBarId] = useState<string>('');
@@ -770,8 +768,8 @@ export default function AnnouncementManager() {
   const [barDeleteId, setBarDeleteId] = useState<string | null>(null);
 
   const showNotif = (type: 'success' | 'error', title: string, message?: string) => {
-    setNotification({ type, title, message });
-    setTimeout(() => setNotification(null), 4000);
+    if (type === 'success') toast.success(title, message ? { description: message } : undefined);
+    else toast.error(title, message ? { description: message } : undefined);
   };
 
   const syncContext = (groups: AnnouncementBarGroup[]) => {
@@ -913,15 +911,6 @@ export default function AnnouncementManager() {
 
   return (
     <div className="space-y-6">
-      {notification && (
-        <Notification
-          type={notification.type}
-          title={notification.title}
-          message={notification.message}
-          onClose={() => setNotification(null)}
-        />
-      )}
-
       <AnnouncementFormDialog
         open={annFormOpen}
         onClose={() => { setAnnFormOpen(false); setAnnEditing(null); }}

@@ -20,7 +20,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 export function Navbar() {
   const { theme, setTheme } = useTheme();
-  const { logoUrl, hasActiveAnnouncements } = useContent();
+  const { logoUrl, announcementBars } = useContent();
+  // Total height of all active bars (each is 40px)
+  const totalBarHeight = announcementBars.filter(g => g.bar.isActive && g.items.length > 0).length * 40;
   const { lang, setLang, t } = useLanguage();
   const { user, isAuthenticated, logout } = useAuth();
   const { isVisible } = usePageVisibility();
@@ -81,9 +83,8 @@ export function Navbar() {
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.5 }}
+        style={{ top: totalBarHeight }}
         className={`fixed left-0 right-0 z-50 h-16 transition-all duration-300 ease-in-out ${
-          hasActiveAnnouncements ? 'top-10' : 'top-0'
-        } ${
           scrolled
             ? 'bg-background/70 backdrop-blur-xl border-b border-border/50 shadow-lg shadow-black/5'
             : 'bg-transparent border-transparent'

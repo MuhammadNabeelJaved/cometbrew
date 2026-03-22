@@ -156,7 +156,10 @@ export default function ClientProjectRequests() {
     setApprovingId(id);
     try {
       const res = await apiClient.patch(`/projects/${id}`, { status: 'approved' });
-      setRequests(prev => prev.map(r => r._id === id ? res.data.data : r));
+      const updated = res.data?.data;
+      setRequests(prev => prev.map(r =>
+        r._id === id ? (updated ?? { ...r, status: 'approved' as const }) : r
+      ));
       toast.success('Project approved');
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Failed to approve');
@@ -171,7 +174,10 @@ export default function ClientProjectRequests() {
     setRejectingId(id);
     try {
       const res = await apiClient.patch(`/projects/${id}`, { status: 'rejected' });
-      setRequests(prev => prev.map(r => r._id === id ? res.data.data : r));
+      const updated = res.data?.data;
+      setRequests(prev => prev.map(r =>
+        r._id === id ? (updated ?? { ...r, status: 'rejected' as const }) : r
+      ));
       toast.success('Project rejected');
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Failed to reject');
@@ -349,7 +355,7 @@ export default function ClientProjectRequests() {
           <p>{search || filterStatus !== 'All' ? 'No requests match your filter' : 'No project requests yet'}</p>
         </div>
       ) : (
-        <div className="rounded-xl border border-border/50 overflow-hidden">
+        <div className="rounded-xl border border-border/50 overflow-hidden overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/40 hover:bg-muted/40">

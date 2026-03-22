@@ -188,13 +188,13 @@ export default function Careers() {
                       </p>
                     )}
                   </CardContent>
-                  <CardFooter className="pt-4 border-t border-border/50 grid grid-cols-2 gap-3">
-                    <Button asChild variant="outline" className="w-full">
+                  <CardFooter className="pt-4 border-t border-border/50 flex gap-2">
+                    <Button asChild variant="outline" className="flex-1 min-w-0">
                       <Link to={`/careers/${job._id}`}>View Details</Link>
                     </Button>
-                    <Button asChild className="w-full">
-                      <Link to={`/careers/apply?job=${job._id}`}>
-                        Apply Now <ArrowRight className="ml-2 w-4 h-4" />
+                    <Button asChild className="flex-1 min-w-0">
+                      <Link to={`/careers/apply?job=${job._id}`} className="flex items-center justify-center gap-1.5">
+                        Apply Now <ArrowRight className="w-3.5 h-3.5 shrink-0" />
                       </Link>
                     </Button>
                   </CardFooter>

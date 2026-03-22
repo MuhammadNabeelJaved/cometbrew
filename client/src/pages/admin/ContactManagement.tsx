@@ -52,7 +52,7 @@ import {
 } from "../../components/ui/dialog";
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
-import { Notification } from '../../components/Notification';
+import { toast } from 'sonner';
 import { contactsApi } from '../../api/contacts.api';
 import ConfirmDeleteDialog from '../../components/ui/ConfirmDeleteDialog';
 
@@ -72,12 +72,6 @@ export default function ContactManagement() {
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [contactToDelete, setContactToDelete] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [notification, setNotification] = useState<{ type: 'success' | 'error'; title: string; message?: string } | null>(null);
-
-  const showNotification = (type: 'success' | 'error', title: string, message?: string) => {
-    setNotification({ type, title, message });
-    setTimeout(() => setNotification(null), 4000);
-  };
 
   const fetchContacts = async (page = currentPage) => {
     setIsLoading(true);
@@ -101,7 +95,7 @@ export default function ContactManagement() {
         setTotalPages(result.totalPages || Math.ceil((result.total || 0) / itemsPerPage) || 1);
       }
     } catch (err: any) {
-      showNotification('error', 'Failed to load contacts', err?.response?.data?.message || 'Could not connect to the server.');
+      toast.error('Failed to load contacts', { description: err?.response?.data?.message || 'Could not connect to the server.' });
     } finally {
       setIsLoading(false);
     }
@@ -154,17 +148,17 @@ export default function ContactManagement() {
       if (contactToDelete === 'BULK') {
         await contactsApi.deleteBulk(selectedContacts);
         setSelectedContacts([]);
-        showNotification('success', 'Contacts deleted', `${selectedContacts.length} contacts removed.`);
+        toast.success('Contacts deleted', { description: `${selectedContacts.length} contacts removed.` });
       } else if (contactToDelete) {
         await contactsApi.delete(contactToDelete);
-        showNotification('success', 'Contact deleted', 'The contact has been removed.');
+        toast.success('Contact deleted', { description: 'The contact has been removed.' });
       }
       setIsDeleteAlertOpen(false);
       setContactToDelete(null);
       if (viewContact) setViewContact(null);
       fetchContacts(currentPage);
     } catch (err: any) {
-      showNotification('error', 'Delete failed', err?.response?.data?.message || 'Could not delete the contact(s).');
+      toast.error('Delete failed', { description: err?.response?.data?.message || 'Could not delete the contact(s).' });
       setIsDeleteAlertOpen(false);
     }
   };
@@ -181,11 +175,11 @@ export default function ContactManagement() {
         subject: editContact.subject,
         message: editContact.message,
       });
-      showNotification('success', 'Contact updated', 'Changes have been saved.');
+      toast.success('Contact updated', { description: 'Changes have been saved.' });
       setEditContact(null);
       fetchContacts(currentPage);
     } catch (err: any) {
-      showNotification('error', 'Update failed', err?.response?.data?.message || 'Could not update the contact.');
+      toast.error('Update failed', { description: err?.response?.data?.message || 'Could not update the contact.' });
     } finally {
       setIsSaving(false);
     }
@@ -193,15 +187,6 @@ export default function ContactManagement() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      {notification && (
-        <Notification
-          type={notification.type}
-          title={notification.title}
-          message={notification.message}
-          onClose={() => setNotification(null)}
-        />
-      )}
-
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
@@ -304,7 +289,7 @@ export default function ContactManagement() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="rounded-md border border-border/50 overflow-hidden">
+          <div className="rounded-md border border-border/50 overflow-hidden overflow-x-auto">
             <Table>
               <TableHeader className="bg-muted/50">
                 <TableRow>
