@@ -87,13 +87,13 @@ export default function JobApplicationSuccess() {
           transition={{ delay: 0.6 }}
         >
           <Link to="/careers">
-            <Button variant="outline" size="lg" className="w-full sm:w-auto h-13 px-8 text-base gap-2">
+            <Button variant="outline" size="lg" className="w-full sm:w-auto h-12 px-8 text-base gap-2">
               <Briefcase className="h-5 w-5" />
               View Other Roles
             </Button>
           </Link>
           <Link to="/">
-            <Button size="lg" className="w-full sm:w-auto h-13 px-8 text-base gap-2 shadow-lg shadow-primary/20">
+            <Button size="lg" className="w-full sm:w-auto h-12 px-8 text-base gap-2 shadow-lg shadow-primary/20">
               <Home className="h-5 w-5" />
               Back to Home
             </Button>
