@@ -10,6 +10,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { ContentProvider } from './contexts/ContentContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
+import { SocketProvider } from './contexts/SocketContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { GlobalStyles } from './components/GlobalStyles';
 import { Toaster } from 'sonner';
@@ -167,6 +168,7 @@ function ToasterWrapper() {
   return (
     <Toaster
       richColors
+      closeButton
       position="top-right"
       theme={theme as 'light' | 'dark' | 'system'}
       duration={4000}
@@ -183,6 +185,7 @@ export default function App() {
     <ThemeProvider defaultTheme="light" storageKey="agency-theme">
       <LanguageProvider>
       <AuthProvider>
+      <SocketProvider>
       <ContentProvider>
         <GlobalStyles />
         <ToasterWrapper />
@@ -300,6 +303,7 @@ export default function App() {
           </BrowserRouter>
         </div>
       </ContentProvider>
+      </SocketProvider>
       </AuthProvider>
       </LanguageProvider>
     </ThemeProvider>

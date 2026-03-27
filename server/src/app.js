@@ -77,6 +77,9 @@ import taskRoutes from "./routes/userRoutes/task.route.js";
 import resourceRoutes from "./routes/userRoutes/resource.route.js";
 import pageStatusRoutes from "./routes/userRoutes/pageStatus.route.js";
 import announcementRoutes from "./routes/userRoutes/announcement.route.js";
+import chatRoutes from "./routes/userRoutes/chat.route.js";
+import notificationRoutes from "./routes/userRoutes/notification.route.js";
+import databaseRoutes from "./routes/userRoutes/database.route.js";
 
 // ⚠️ TEMP DEV-ONLY — REMOVE BEFORE PROD
 // Seed endpoint — populates CMS, Hero, and Services with default data
@@ -714,6 +717,9 @@ app.use("/api/v1/tasks", taskRoutes);                  // Team Kanban tasks
 app.use("/api/v1/resources", resourceRoutes);          // Team shared resources (Cloudinary)
 app.use("/api/v1/page-status", pageStatusRoutes);      // Public page status (maintenance / coming-soon)
 app.use("/api/v1/announcements", announcementRoutes);  // Announcement bar (public GET, admin CRUD)
+app.use("/api/v1/chat", chatRoutes);                  // Real-time chat (conversations, messages, uploads)
+app.use("/api/v1/notifications", notificationRoutes); // Notification list, mark-read, clear
+app.use("/api/v1/database", databaseRoutes);           // Admin database manager
 
 // ─── Error Handling ─────────────────────────────────────────────────────────
 

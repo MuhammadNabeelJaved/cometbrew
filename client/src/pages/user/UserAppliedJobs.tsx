@@ -26,7 +26,7 @@ export default function UserAppliedJobs() {
 
   useEffect(() => {
     getMyApplications()
-      .then(res => setApplications(res.data.data || []))
+      .then(res => setApplications(res.data.data?.applications || []))
       .catch(() => toast.error('Failed to load your applications'))
       .finally(() => setLoading(false));
   }, []);

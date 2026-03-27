@@ -23,7 +23,7 @@ import {
   DialogHeader, DialogTitle,
 } from '../../components/ui/dialog';
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select, SelectItem,
 } from '../../components/ui/select';
 import { toast } from 'sonner';
 import { clientsApi } from '../../api/clients.api';
@@ -320,17 +320,12 @@ export default function ClientManagement() {
                   className="pl-9"
                 />
               </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-36 shrink-0">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
+              <Select value={statusFilter} onValueChange={setStatusFilter} className="w-36 shrink-0">
                   <SelectItem value="All">All Statuses</SelectItem>
                   <SelectItem value="Active">Active</SelectItem>
                   <SelectItem value="Onboarding">Onboarding</SelectItem>
                   <SelectItem value="Inactive">Inactive</SelectItem>
                   <SelectItem value="Churned">Churned</SelectItem>
-                </SelectContent>
               </Select>
             </div>
           </div>
@@ -381,16 +376,11 @@ export default function ClientManagement() {
 
                       {/* Status — click to change */}
                       <TableCell>
-                        <Select value={client.status} onValueChange={val => handleStatusChange(client, val)}>
-                          <SelectTrigger className="w-auto h-auto p-0 border-0 bg-transparent shadow-none focus:ring-0 [&>svg]:hidden">
-                            <StatusBadge status={client.status} />
-                          </SelectTrigger>
-                          <SelectContent>
+                        <Select value={client.status} onValueChange={val => handleStatusChange(client, val)} className="text-xs h-8">
                             <SelectItem value="Active">Active</SelectItem>
                             <SelectItem value="Onboarding">Onboarding</SelectItem>
                             <SelectItem value="Inactive">Inactive</SelectItem>
                             <SelectItem value="Churned">Churned</SelectItem>
-                          </SelectContent>
                         </Select>
                       </TableCell>
 
@@ -563,13 +553,10 @@ export default function ClientManagement() {
               <div className="space-y-1.5">
                 <Label>Status</Label>
                 <Select value={formData.status} onValueChange={val => setFormData({ ...formData, status: val })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
                     <SelectItem value="Active">Active</SelectItem>
                     <SelectItem value="Onboarding">Onboarding</SelectItem>
                     <SelectItem value="Inactive">Inactive</SelectItem>
                     <SelectItem value="Churned">Churned</SelectItem>
-                  </SelectContent>
                 </Select>
               </div>
 
