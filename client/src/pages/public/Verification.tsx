@@ -24,13 +24,13 @@ export default function Verification() {
   const [error, setError] = useState<string | null>(null);
   const [resending, setResending] = useState(false);
   const [resendMsg, setResendMsg] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Email from location state (passed from login/signup/ProtectedRoute)
   const email = location.state?.email || user?.email || '';
 
   useEffect(() => {
-    inputRef.current?.focus();
+    inputRefs.current[0]?.focus();
   }, []);
 
   // If already verified, redirect immediately
@@ -47,28 +47,41 @@ export default function Verification() {
   };
 
   const handleOnChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
-    const { value } = e.target;
+    const digit = e.target.value.replace(/\D/g, '').slice(-1);
     const newOtp = [...otp];
-
-    // Handle paste
-    if (value.length > 1) {
-      const digits = value.replace(/\D/g, '').slice(0, 6).split('');
-      for (let i = 0; i < 6; i++) newOtp[i] = digits[i] ?? '';
-      setOtp(newOtp);
-      setActiveOtpIndex(Math.min(digits.length, 5));
-      return;
-    }
-
-    newOtp[index] = value.replace(/\D/g, '').substring(value.length - 1);
+    newOtp[index] = digit;
     setOtp(newOtp);
-    if (!value) setActiveOtpIndex(index - 1);
-    else setActiveOtpIndex(index + 1);
+    if (digit && index < 5) {
+      const next = index + 1;
+      setActiveOtpIndex(next);
+      inputRefs.current[next]?.focus();
+    }
   };
 
   const handleOnKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
-    if (e.key === 'Backspace' && index > 0 && !otp[index]) {
-      setActiveOtpIndex(index - 1);
+    if (e.key === 'Backspace') {
+      if (otp[index]) {
+        const newOtp = [...otp];
+        newOtp[index] = '';
+        setOtp(newOtp);
+      } else if (index > 0) {
+        const prev = index - 1;
+        setActiveOtpIndex(prev);
+        inputRefs.current[prev]?.focus();
+      }
     }
+  };
+
+  const handleOnPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const digits = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6).split('');
+    if (!digits.length) return;
+    const newOtp = [...otp];
+    digits.forEach((d, i) => { newOtp[i] = d; });
+    setOtp(newOtp);
+    const focusIdx = Math.min(digits.length, 5);
+    setActiveOtpIndex(focusIdx);
+    inputRefs.current[focusIdx]?.focus();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -108,6 +121,7 @@ export default function Verification() {
       setResendMsg('A new code has been sent to your email.');
       setOtp(['', '', '', '', '', '']);
       setActiveOtpIndex(0);
+      setTimeout(() => inputRefs.current[0]?.focus(), 50);
     } catch (err) {
       const msg = (err as AxiosError<{ message: string }>).response?.data?.message
         ?? 'Failed to resend code.';
@@ -175,7 +189,7 @@ export default function Verification() {
               {otp.map((_, index) => (
                 <div key={index} className="relative">
                   <Input
-                    ref={index === activeOtpIndex ? inputRef : null}
+                    ref={(el) => { inputRefs.current[index] = el; }}
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
@@ -185,6 +199,8 @@ export default function Verification() {
                     value={otp[index]}
                     onChange={(e) => handleOnChange(e, index)}
                     onKeyDown={(e) => handleOnKeyDown(e, index)}
+                    onPaste={handleOnPaste}
+                    onFocus={() => setActiveOtpIndex(index)}
                     maxLength={1}
                     disabled={isSubmitting || isSuccess}
                   />
