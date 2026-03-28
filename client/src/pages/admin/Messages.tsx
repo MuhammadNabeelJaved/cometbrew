@@ -40,6 +40,9 @@ export default function Messages() {
     const messagesContainerRef = useRef<HTMLDivElement>(null);
     const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    // Keep a ref to selectedConvo so reconnect effect can access current value
+    const selectedConvoRef = useRef<Conversation | null>(null);
+    useEffect(() => { selectedConvoRef.current = selectedConvo; }, [selectedConvo]);
 
     // ── Load conversations ───────────────────────────────────────────────────
     const loadConversations = useCallback(async (type: ChatTab) => {
@@ -86,6 +89,17 @@ export default function Messages() {
         socket.on('admin:new_support_request', onNewRequest);
         return () => { socket.off('admin:new_support_request', onNewRequest); };
     }, [socket, tab]);
+
+    // ── Reconnect recovery: rejoin room + reload messages ────────────────────
+    useEffect(() => {
+        if (!isConnected || !socket) return;
+        const convo = selectedConvoRef.current;
+        if (!convo) return;
+        socket.emit('chat:join_conversation', { conversationId: convo._id });
+        chatApi.getMessages(convo._id, 1, 50)
+            .then((res) => setMessages(res.data.data?.messages || []))
+            .catch(() => {});
+    }, [isConnected, socket]);
 
     const selectConversation = async (convo: Conversation) => {
         if (selectedConvo) {
@@ -224,7 +238,7 @@ export default function Messages() {
     };
 
     const getOtherParticipant = (convo: Conversation) =>
-        convo.participants.find((p) => p._id !== user?._id);
+        convo.participants.find((p) => p && p._id !== user?._id);
 
     const formatTime = (dateStr: string) =>
         new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });

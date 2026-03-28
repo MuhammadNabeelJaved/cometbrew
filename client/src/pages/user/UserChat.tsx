@@ -71,12 +71,14 @@ export default function UserChat() {
         }
     };
 
-    // ── Join socket room when conversation is ready ──────────────────────────
+    // ── Join socket room when conversation is ready (and on reconnect) ────────
     useEffect(() => {
-        if (!socket || !conversation) return;
+        if (!socket || !conversation || !isConnected) return;
         socket.emit('chat:join_conversation', { conversationId: conversation._id });
         socket.emit('chat:read_messages', { conversationId: conversation._id });
-    }, [socket, conversation?._id]);
+        // Reload messages in case any were missed while disconnected
+        loadMessages(conversation._id);
+    }, [socket, conversation?._id, isConnected]);
 
     // ── Socket event listeners ───────────────────────────────────────────────
     useEffect(() => {

@@ -64,8 +64,8 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         const socket = io(SOCKET_URL, {
             withCredentials: true, // sends the HTTP-only accessToken cookie
             transports: ['polling', 'websocket'],
-            reconnectionAttempts: 3,
-            reconnectionDelay: 3000,
+            reconnectionDelay: 2000,
+            reconnectionDelayMax: 10000,
         });
 
         socket.on('connect', () => {
