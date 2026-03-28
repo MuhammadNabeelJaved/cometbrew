@@ -371,6 +371,7 @@ export default function Messages() {
     const activeParticipant = selectedConvo ? getOtherParticipant(selectedConvo) : null;
 
     return (
+        <>
         <div className="flex h-[calc(100vh-8rem)] rounded-xl border bg-card overflow-hidden shadow-sm">
             {/* Sidebar */}
             <div className={`w-full md:w-80 border-r bg-muted/10 flex flex-col ${selectedConvo ? 'hidden md:flex' : 'flex'}`}>
@@ -802,5 +803,6 @@ export default function Messages() {
                 </motion.div>
             </div>
         )}
+        </>
     );
 }
