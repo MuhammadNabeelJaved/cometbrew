@@ -31,7 +31,7 @@ export interface AppNotification {
     createdBy?: { name: string; photo: string; role: string };
 }
 
-export function useNotifications() {
+export function useNotifications({ enableToast = true }: { enableToast?: boolean } = {}) {
     const { socket } = useSocket();
     const { isAuthenticated } = useAuth();
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -67,9 +67,11 @@ export function useNotifications() {
             setNotifications((prev) => [notif, ...prev]);
             // 2. Increment bell counter
             setUnreadCount((c) => c + 1);
-            // 3. Show transient toast
-            const toastFn = getToastFn(notif.type);
-            toastFn(notif.title, { description: notif.message });
+            // 3. Show transient toast (only the designated instance per layout)
+            if (enableToast) {
+                const toastFn = getToastFn(notif.type);
+                toastFn(notif.title, { description: notif.message });
+            }
         };
 
         // Server sends the accurate count (on reconnect / after mark-read via socket)

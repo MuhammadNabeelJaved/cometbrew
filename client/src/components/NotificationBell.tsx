@@ -19,7 +19,7 @@ interface NotificationBellProps {
 
 export function NotificationBell({ notificationsRoute, chatRoute }: NotificationBellProps) {
     const navigate = useNavigate();
-    const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+    const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications({ enableToast: false });
     const [open, setOpen] = React.useState(false);
     const ref = useRef<HTMLDivElement>(null);
 

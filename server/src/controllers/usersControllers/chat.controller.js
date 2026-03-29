@@ -29,12 +29,33 @@ function detectFileType(mimetype = "") {
     return "other";
 }
 
+// ─── Shared helper: inject unreadCount per conversation ──────────────────────
+async function withUnreadCounts(conversations, userId) {
+    if (!conversations.length) return conversations;
+    const convoIds = conversations.map((c) => c._id);
+    const agg = await Message.aggregate([
+        {
+            $match: {
+                conversationId: { $in: convoIds },
+                readBy: { $not: { $elemMatch: { $eq: userId } } },
+                messageType: { $ne: "system" },
+            },
+        },
+        { $group: { _id: "$conversationId", count: { $sum: 1 } } },
+    ]);
+    const map = Object.fromEntries(agg.map((u) => [u._id.toString(), u.count]));
+    return conversations.map((c) => ({
+        ...c,
+        unreadCount: map[c._id.toString()] || 0,
+    }));
+}
+
 // =============================================================================
 // GET /api/v1/chat/conversations
 // Returns all conversations the authenticated user participates in.
 // =============================================================================
 export const getConversations = asyncHandler(async (req, res) => {
-    const conversations = await Conversation.find({
+    let conversations = await Conversation.find({
         participants: req.user._id,
         isActive: true,
     })
@@ -46,6 +67,7 @@ export const getConversations = asyncHandler(async (req, res) => {
         .sort({ lastMessageAt: -1 })
         .lean();
 
+    conversations = await withUnreadCounts(conversations, req.user._id);
     successResponse(res, "Conversations fetched", conversations);
 });
 
@@ -62,7 +84,7 @@ export const getOrCreateConversation = asyncHandler(async (req, res) => {
         throw new AppError("type is required", 400);
     }
 
-    const validTypes = ["user_admin", "admin_team"];
+    const validTypes = ["user_admin", "admin_team", "team_team"];
     if (!validTypes.includes(type)) {
         throw new AppError("Invalid conversation type", 400);
     }
@@ -222,6 +244,7 @@ export const adminGetAllConversations = asyncHandler(async (req, res) => {
         );
     }
 
+    conversations = await withUnreadCounts(conversations, req.user._id);
     successResponse(res, "Conversations fetched", conversations);
 });
 
@@ -241,4 +264,67 @@ export const getTeamMembersForChat = asyncHandler(async (req, res) => {
     }).select("name photo email teamProfile.position teamProfile.department");
 
     successResponse(res, "Team members fetched", members);
+});
+
+// =============================================================================
+// DELETE /api/v1/chat/conversations/:id/messages
+// Admin only: clear all messages in a conversation (keeps the conversation).
+// =============================================================================
+export const clearChatMessages = asyncHandler(async (req, res) => {
+    const conversation = await Conversation.findById(req.params.id);
+    if (!conversation) throw new AppError("Conversation not found", 404);
+
+    const isParticipant = conversation.participants.some((p) =>
+        p.equals(req.user._id)
+    );
+    if (!isParticipant && req.user.role !== "admin") {
+        throw new AppError("Access denied", 403);
+    }
+
+    await Message.deleteMany({ conversationId: req.params.id });
+
+    // Reset the conversation's lastMessage pointer
+    await Conversation.findByIdAndUpdate(req.params.id, {
+        lastMessage: null,
+        lastMessageAt: new Date(),
+    });
+
+    successResponse(res, "Chat cleared");
+});
+
+// =============================================================================
+// GET /api/v1/chat/team/peers
+// Team members only: list other team members available for DM.
+// =============================================================================
+export const getTeamPeersForChat = asyncHandler(async (req, res) => {
+    if (req.user.role !== "team") {
+        throw new AppError("Team member access required", 403);
+    }
+
+    const members = await User.find({
+        role: "team",
+        isActive: true,
+        deletedAt: null,
+        _id: { $ne: req.user._id },
+    }).select("name photo email teamProfile.position teamProfile.department");
+
+    successResponse(res, "Team peers fetched", members);
+});
+
+// =============================================================================
+// DELETE /api/v1/chat/conversations/:id
+// Admin only: permanently delete a conversation and all its messages.
+// =============================================================================
+export const deleteConversation = asyncHandler(async (req, res) => {
+    if (req.user.role !== "admin") {
+        throw new AppError("Admin access required", 403);
+    }
+
+    const conversation = await Conversation.findById(req.params.id);
+    if (!conversation) throw new AppError("Conversation not found", 404);
+
+    await Message.deleteMany({ conversationId: req.params.id });
+    await Conversation.findByIdAndDelete(req.params.id);
+
+    successResponse(res, "Conversation deleted");
 });

@@ -7,12 +7,20 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
     Search, MoreVertical, Phone, Video, Send, Paperclip,
-    CheckCheck, Users, Loader2, Hash, UserX, MessageSquarePlus, X
+    CheckCheck, Users, Loader2, Hash, UserX, MessageSquarePlus, X,
+    Trash2, Eraser, BellOff, Bell, UserCircle, ChevronRight, Mail,
+    ShieldCheck, Calendar, ArrowDown,
 } from 'lucide-react';
-import { useNotifications } from '../../hooks/useNotifications';
 import { Button } from '../../components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '../../components/ui/dropdown-menu';
 import { toast } from 'sonner';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
 import { chatApi, ChatMessage, Conversation } from '../../api/chat.api';
@@ -41,22 +49,40 @@ export default function Messages() {
     const [highlightedMsgId, setHighlightedMsgId] = useState<string | null>(null);
     // Per-conversation unread counts (incremented on new msg when not selected, cleared on select)
     const [convoUnread, setConvoUnread] = useState<Record<string, number>>({});
-    // Team tab unread badge (increments when on users tab and team msg arrives)
+    // Tab unread badges: increment only when a message from the OTHER tab arrives
     const [teamTabUnread, setTeamTabUnread] = useState(0);
+    const [userTabUnread, setUserTabUnread] = useState(0);
     // New team DM modal
     const [showNewDmModal, setShowNewDmModal] = useState(false);
     const [teamMembers, setTeamMembers] = useState<Array<{ _id: string; name: string; photo: string; teamProfile?: { position?: string } }>>([]);
     const [isLoadingMembers, setIsLoadingMembers] = useState(false);
     const [isStartingDm, setIsStartingDm] = useState<string | null>(null);
-    const { chatUnreadCount } = useNotifications();
+    // Profile panel & mute
+    const [showProfile, setShowProfile] = useState(false);
+    const [mutedConvos, setMutedConvos] = useState<Set<string>>(new Set());
+    // Confirm dialogs
+    const [confirmClear, setConfirmClear] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState(false);
+    const [isActioning, setIsActioning] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const messagesContainerRef = useRef<HTMLDivElement>(null);
     const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const scrolledToMsgRef = useRef<string | null>(null);
-    // Keep a ref to selectedConvo so reconnect effect can access current value
+    // Keep refs so socket callbacks always see fresh values without re-subscribing
     const selectedConvoRef = useRef<Conversation | null>(null);
+    const tabRef = useRef<ChatTab>(tab);
+    const conversationsRef = useRef<Conversation[]>([]);
+    // Tracks the last convoId we attempted cross-tab switch for, to prevent infinite toggling
+    const pendingConvoIdRef = useRef<string | null>(null);
+    // Scroll-to-bottom
+    const [showScrollBtn, setShowScrollBtn] = useState(false);
+    const [newBelowCount, setNewBelowCount] = useState(0);
+    const isAtBottomRef = useRef(true);
+    const prevMsgCountRef = useRef(0);
     useEffect(() => { selectedConvoRef.current = selectedConvo; }, [selectedConvo]);
+    useEffect(() => { tabRef.current = tab; }, [tab]);
+    useEffect(() => { conversationsRef.current = conversations; }, [conversations]);
 
     // ── Load conversations ───────────────────────────────────────────────────
     const loadConversations = useCallback(async (type: ChatTab) => {
@@ -66,7 +92,22 @@ export default function Messages() {
             setMessages([]);
             const convoType = type === 'users' ? 'user_admin' : 'admin_team';
             const res = await chatApi.adminGetConversations(convoType, search || undefined);
-            setConversations(res.data.data || []);
+            const convos = res.data.data || [];
+            setConversations(convos);
+            // Initialise per-convo unread badges from server — skip the currently
+            // selected conversation (it's already visible; clear it, don't overwrite)
+            const selectedId = selectedConvoRef.current?._id;
+            setConvoUnread(prev => {
+                const next = { ...prev };
+                convos.forEach((c: any) => {
+                    if ((c.unreadCount ?? 0) > 0 && c._id !== selectedId) {
+                        next[c._id] = c.unreadCount;
+                    } else if (c._id === selectedId) {
+                        next[c._id] = 0; // always keep selected convo clear
+                    }
+                });
+                return next;
+            });
         } catch (err: any) {
             toast.error('Failed to load conversations', { description: err?.response?.data?.message || 'Please try again.' });
         } finally {
@@ -74,9 +115,27 @@ export default function Messages() {
         }
     }, [search]);
 
+    // ── Load the OTHER tab's total unread on first mount (tab badge) ─────────
+    useEffect(() => {
+        if (!user || user.role !== 'admin') return;
+        const otherType = initialTab === 'users' ? 'admin_team' : 'user_admin';
+        chatApi.adminGetConversations(otherType).then(res => {
+            const convos = res.data.data || [];
+            const total = convos.reduce((s: number, c: any) => s + (c.unreadCount ?? 0), 0);
+            if (initialTab === 'users') setTeamTabUnread(total);
+            else setUserTabUnread(total);
+            // Also seed convoUnread for the other tab's convos
+            const unreadMap: Record<string, number> = {};
+            convos.forEach((c: any) => { if ((c.unreadCount ?? 0) > 0) unreadMap[c._id] = c.unreadCount; });
+            setConvoUnread(prev => ({ ...prev, ...unreadMap }));
+        }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user]);
+
     useEffect(() => {
         if (user?.role === 'admin') loadConversations(tab);
-        if (tab === 'team') setTeamTabUnread(0); // clear badge when switching to team tab
+        if (tab === 'team') setTeamTabUnread(0); // clear team badge when switching to team tab
+        if (tab === 'users') setUserTabUnread(0); // clear user badge when switching to users tab
     }, [tab, user]);
 
     // Re-filter on search change
@@ -87,12 +146,29 @@ export default function Messages() {
         return () => clearTimeout(t);
     }, [search]);
 
-    // Auto-select conversation from URL param ?convoId=...
+    // Auto-select conversation from URL param ?convoId=
+    // If the target conversation is in the OTHER tab, switch tabs automatically (once).
     useEffect(() => {
         const convoId = searchParams.get('convoId');
-        if (!convoId || conversations.length === 0) return;
+        if (!convoId) return;
+        if (conversations.length === 0) return; // wait for current tab to load
+
         const match = conversations.find((c) => c._id === convoId);
-        if (match && selectedConvo?._id !== convoId) selectConversation(match);
+        if (match) {
+            // Found in current tab — select it and clear any pending cross-tab flag
+            if (selectedConvo?._id !== convoId) selectConversation(match);
+            pendingConvoIdRef.current = null;
+            return;
+        }
+
+        // Not found in current tab. Switch to the other tab once per convoId so we
+        // can search there. Guard against infinite flipping with pendingConvoIdRef.
+        if (pendingConvoIdRef.current !== convoId) {
+            pendingConvoIdRef.current = convoId;
+            setTab(prev => prev === 'users' ? 'team' : 'users');
+        }
+        // Once tab flips, loadConversations fires → conversations updates → this
+        // effect re-runs and finds the match (or gives up if genuinely not found).
     }, [conversations, searchParams]);
 
     // ── Load team members for New DM modal ───────────────────────────────────
@@ -177,10 +253,17 @@ export default function Messages() {
         if (selectedConvo) {
             socket?.emit('chat:leave_conversation', { conversationId: selectedConvo._id });
         }
+        selectedConvoRef.current = convo; // sync immediately so socket handler is correct
         setSelectedConvo(convo);
+        setShowProfile(false);
         // Clear unread count for this conversation
         setConvoUnread(prev => ({ ...prev, [convo._id]: 0 }));
         setMessages([]);
+        // Reset scroll state
+        setShowScrollBtn(false);
+        setNewBelowCount(0);
+        isAtBottomRef.current = true;
+        prevMsgCountRef.current = 0;
         try {
             setIsMsgsLoading(true);
             const res = await chatApi.getMessages(convo._id, 1, 50);
@@ -208,6 +291,8 @@ export default function Messages() {
             }
             socket?.emit('chat:join_conversation', { conversationId: convo._id });
             socket?.emit('chat:read_messages', { conversationId: convo._id });
+            // Re-clear badge after async load — handles any functional-update race
+            setConvoUnread(prev => ({ ...prev, [convo._id]: 0 }));
         } catch (err: any) {
             toast.error('Failed to load messages', { description: err?.response?.data?.message || 'Please try again.' });
         } finally {
@@ -220,22 +305,30 @@ export default function Messages() {
         if (!socket) return;
 
         const onNewMessage = (msg: ChatMessage) => {
-            if (msg.conversationId === selectedConvo?._id) {
+            if (msg.conversationId === selectedConvoRef.current?._id) {
                 setMessages((prev) => {
                     if (prev.find((m) => m._id === msg._id)) return prev;
                     return [...prev, msg];
                 });
+                if (!isAtBottomRef.current) {
+                    setNewBelowCount(prev => prev + 1);
+                    setShowScrollBtn(true);
+                }
                 socket.emit('chat:read_messages', { conversationId: msg.conversationId });
             } else {
-                // Increment per-conversation unread
-                setConvoUnread(prev => ({ ...prev, [msg.conversationId]: (prev[msg.conversationId] ?? 0) + 1 }));
-                // If this is a team message and admin is on 'users' tab, bump teamTabUnread
-                // We detect team msg by checking if it's in the current conversations list
-                setTeamTabUnread(prev => {
-                    // Only increment if we're viewing users tab and convo isn't in current list
-                    // (meaning it belongs to the other tab)
-                    return prev + 1;
-                });
+                // Check if this conversation is in the currently-visible tab's list
+                const isInCurrentTab = conversationsRef.current.some(c => c._id === msg.conversationId);
+                if (isInCurrentTab) {
+                    // Same tab, just not selected — show per-convo badge
+                    setConvoUnread(prev => ({ ...prev, [msg.conversationId]: (prev[msg.conversationId] ?? 0) + 1 }));
+                } else {
+                    // Belongs to the other tab — bump that tab's badge
+                    if (tabRef.current === 'users') {
+                        setTeamTabUnread(prev => prev + 1);
+                    } else {
+                        setUserTabUnread(prev => prev + 1);
+                    }
+                }
             }
             setConversations((prev) => {
                 const exists = prev.find(c => c._id === msg.conversationId);
@@ -284,8 +377,13 @@ export default function Messages() {
     useEffect(() => {
         const targetId = searchParams.get('messageId');
         if (targetId && messages.find(m => m._id === targetId)) return; // let scroll-to-msg handle it
-        const el = messagesContainerRef.current;
-        if (el) el.scrollTop = el.scrollHeight;
+        const isInitialLoad = prevMsgCountRef.current === 0 && messages.length > 0;
+        const wasAtBottom = isAtBottomRef.current;
+        prevMsgCountRef.current = messages.length;
+        if (isInitialLoad || wasAtBottom) {
+            const el = messagesContainerRef.current;
+            if (el) el.scrollTop = el.scrollHeight;
+        }
     }, [messages]);
 
     // ── Scroll to + highlight a specific message from notification ────────────
@@ -362,6 +460,79 @@ export default function Messages() {
         }
     };
 
+    // ── Clear chat ────────────────────────────────────────────────────────────
+    const handleClearChat = async () => {
+        if (!selectedConvo) return;
+        setIsActioning(true);
+        try {
+            await chatApi.clearChatMessages(selectedConvo._id);
+            setMessages([]);
+            setShowScrollBtn(false);
+            setNewBelowCount(0);
+            prevMsgCountRef.current = 0;
+            setConversations(prev => prev.map(c =>
+                c._id === selectedConvo._id
+                    ? { ...c, lastMessage: undefined, lastMessageAt: new Date().toISOString() }
+                    : c
+            ));
+            setConfirmClear(false);
+            toast.success('Chat cleared');
+        } catch {
+            toast.error('Failed to clear chat');
+        } finally {
+            setIsActioning(false);
+        }
+    };
+
+    // ── Delete conversation ───────────────────────────────────────────────────
+    const handleDeleteConversation = async () => {
+        if (!selectedConvo) return;
+        setIsActioning(true);
+        try {
+            await chatApi.deleteConversation(selectedConvo._id);
+            setConversations(prev => prev.filter(c => c._id !== selectedConvo._id));
+            setSelectedConvo(null);
+            setMessages([]);
+            setShowScrollBtn(false);
+            setNewBelowCount(0);
+            prevMsgCountRef.current = 0;
+            setConfirmDelete(false);
+            setShowProfile(false);
+            toast.success('Conversation deleted');
+        } catch {
+            toast.error('Failed to delete conversation');
+        } finally {
+            setIsActioning(false);
+        }
+    };
+
+    // ── Scroll-to-bottom ─────────────────────────────────────────────────────
+    const handleMessagesScroll = () => {
+        const el = messagesContainerRef.current;
+        if (!el) return;
+        const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+        isAtBottomRef.current = atBottom;
+        setShowScrollBtn(!atBottom);
+        if (atBottom) setNewBelowCount(0);
+    };
+
+    const scrollToBottom = () => {
+        const el = messagesContainerRef.current;
+        if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+        setShowScrollBtn(false);
+        setNewBelowCount(0);
+    };
+
+    // ── Mute toggle ───────────────────────────────────────────────────────────
+    const toggleMute = (convoId: string) => {
+        setMutedConvos(prev => {
+            const next = new Set(prev);
+            if (next.has(convoId)) { next.delete(convoId); toast.success('Notifications unmuted'); }
+            else { next.add(convoId); toast.success('Notifications muted'); }
+            return next;
+        });
+    };
+
     const getOtherParticipant = (convo: Conversation) =>
         convo.participants.find((p) => p && p._id !== user?._id);
 
@@ -385,9 +556,9 @@ export default function Messages() {
                             onClick={() => setTab('users')}
                         >
                             User Chats
-                            {tab !== 'users' && chatUnreadCount > 0 && (
+                            {tab !== 'users' && userTabUnread > 0 && (
                                 <span className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-destructive text-[9px] text-white font-bold flex items-center justify-center">
-                                    {chatUnreadCount > 9 ? '9+' : chatUnreadCount}
+                                    {userTabUnread > 9 ? '9+' : userTabUnread}
                                 </span>
                             )}
                         </Button>
@@ -512,8 +683,9 @@ export default function Messages() {
                 </div>
             </div>
 
-            {/* Main Chat Area */}
-            <div className={`flex-1 flex flex-col ${!selectedConvo ? 'hidden md:flex' : 'flex'}`}>
+            {/* Main Chat Area + Profile Panel wrapper */}
+            <div className={`flex-1 flex min-w-0 ${!selectedConvo ? 'hidden md:flex' : 'flex'}`}>
+            <div className={`flex-1 flex flex-col min-w-0`}>
                 {selectedConvo ? (
                     <>
                         {/* Header */}
@@ -525,28 +697,34 @@ export default function Messages() {
                                 >
                                     ←
                                 </button>
-                                {activeParticipant?.photo && activeParticipant.photo !== 'default.jpg' ? (
-                                    <img
-                                        src={activeParticipant.photo}
-                                        alt={activeParticipant.name}
-                                        className="w-10 h-10 rounded-full object-cover"
-                                    />
-                                ) : (
-                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm ${!activeParticipant ? 'bg-muted border border-border' : 'bg-gradient-to-br from-primary to-purple-600'}`}>
-                                        {activeParticipant
-                                            ? activeParticipant.name?.charAt(0)
-                                            : <UserX className="h-5 w-5 text-muted-foreground" />
-                                        }
+                                {/* Clickable avatar + name → opens profile panel */}
+                                <button
+                                    className="flex items-center gap-3 hover:opacity-80 transition-opacity text-left"
+                                    onClick={() => activeParticipant && setShowProfile(v => !v)}
+                                >
+                                    {activeParticipant?.photo && activeParticipant.photo !== 'default.jpg' ? (
+                                        <img
+                                            src={activeParticipant.photo}
+                                            alt={activeParticipant.name}
+                                            className="w-10 h-10 rounded-full object-cover"
+                                        />
+                                    ) : (
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm ${!activeParticipant ? 'bg-muted border border-border' : 'bg-gradient-to-br from-primary to-purple-600'}`}>
+                                            {activeParticipant
+                                                ? activeParticipant.name?.charAt(0)
+                                                : <UserX className="h-5 w-5 text-muted-foreground" />
+                                            }
+                                        </div>
+                                    )}
+                                    <div>
+                                        <h3 className={`font-semibold ${!activeParticipant ? 'text-muted-foreground italic' : ''}`}>
+                                            {activeParticipant?.name ?? 'Deleted Account'}
+                                        </h3>
+                                        <p className="text-xs text-muted-foreground capitalize">
+                                            {activeParticipant?.role ?? 'Account no longer exists'}
+                                        </p>
                                     </div>
-                                )}
-                                <div>
-                                    <h3 className={`font-semibold ${!activeParticipant ? 'text-muted-foreground italic' : ''}`}>
-                                        {activeParticipant?.name ?? 'Deleted Account'}
-                                    </h3>
-                                    <p className="text-xs text-muted-foreground capitalize">
-                                        {activeParticipant?.role ?? 'Account no longer exists'}
-                                    </p>
-                                </div>
+                                </button>
                             </div>
                             <div className="flex items-center gap-1">
                                 {activeParticipant && (
@@ -559,7 +737,43 @@ export default function Messages() {
                                         <Button variant="ghost" size="icon"><Video className="h-4 w-4" /></Button>
                                     </>
                                 )}
-                                <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-52">
+                                        {activeParticipant && (
+                                            <DropdownMenuItem onClick={() => setShowProfile(v => !v)}>
+                                                <UserCircle className="h-4 w-4 mr-2" />
+                                                View Profile
+                                                <ChevronRight className="h-3 w-3 ml-auto opacity-50" />
+                                            </DropdownMenuItem>
+                                        )}
+                                        {selectedConvo && (
+                                            <DropdownMenuItem onClick={() => toggleMute(selectedConvo._id)}>
+                                                {mutedConvos.has(selectedConvo._id)
+                                                    ? <><Bell className="h-4 w-4 mr-2" />Unmute Notifications</>
+                                                    : <><BellOff className="h-4 w-4 mr-2" />Mute Notifications</>
+                                                }
+                                            </DropdownMenuItem>
+                                        )}
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem
+                                            className="text-amber-600 focus:text-amber-600"
+                                            onClick={() => setConfirmClear(true)}
+                                        >
+                                            <Eraser className="h-4 w-4 mr-2" />
+                                            Clear Chat
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                            className="text-destructive focus:text-destructive"
+                                            onClick={() => setConfirmDelete(true)}
+                                        >
+                                            <Trash2 className="h-4 w-4 mr-2" />
+                                            Delete Conversation
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </div>
                         </div>
 
@@ -572,7 +786,8 @@ export default function Messages() {
                         )}
 
                         {/* Messages */}
-                        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-3 bg-muted/5">
+                        <div className="flex-1 relative overflow-hidden">
+                        <div ref={messagesContainerRef} onScroll={handleMessagesScroll} className="h-full overflow-y-auto overflow-x-hidden px-4 py-3 bg-muted/5">
                             {isMsgsLoading ? (
                                 <div className="flex justify-center py-8">
                                     <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -686,6 +901,26 @@ export default function Messages() {
                             )}
                             <div ref={messagesEndRef} />
                         </div>
+                        <AnimatePresence>
+                            {showScrollBtn && (
+                                <motion.button
+                                    initial={{ opacity: 0, scale: 0.8, y: 8 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.8, y: 8 }}
+                                    transition={{ duration: 0.18 }}
+                                    onClick={scrollToBottom}
+                                    className="absolute bottom-4 right-4 z-10 flex items-center justify-center w-10 h-10 rounded-full bg-background/90 backdrop-blur-sm border-2 border-primary/50 text-primary shadow-xl shadow-black/20 hover:bg-primary hover:text-primary-foreground hover:border-primary hover:scale-110 transition-all duration-200"
+                                >
+                                    {newBelowCount > 0 && (
+                                        <span className="absolute -top-2 -right-2 h-[18px] min-w-[18px] px-1 rounded-full bg-destructive text-[9px] text-white font-bold flex items-center justify-center shadow-sm">
+                                            {newBelowCount > 99 ? '99+' : newBelowCount}
+                                        </span>
+                                    )}
+                                    <ArrowDown className="h-4 w-4" />
+                                </motion.button>
+                            )}
+                        </AnimatePresence>
+                        </div>
 
                         {/* Input */}
                         <div className="border-t bg-card">
@@ -748,7 +983,128 @@ export default function Messages() {
                     </div>
                 )}
             </div>
-        </div>
+
+            {/* ── Profile Slide Panel ── */}
+            <AnimatePresence>
+                {showProfile && activeParticipant && (
+                    <motion.div
+                        initial={{ width: 0, opacity: 0 }}
+                        animate={{ width: 280, opacity: 1 }}
+                        exit={{ width: 0, opacity: 0 }}
+                        transition={{ duration: 0.25, ease: 'easeInOut' }}
+                        className="border-l bg-card overflow-hidden shrink-0 flex flex-col"
+                    >
+                        <div className="flex items-center justify-between px-4 py-3 border-b">
+                            <span className="font-semibold text-sm">Contact Info</span>
+                            <button onClick={() => setShowProfile(false)} className="p-1 rounded-full hover:bg-accent text-muted-foreground">
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto">
+                            {/* Avatar */}
+                            <div className="flex flex-col items-center py-6 px-4 border-b">
+                                {activeParticipant.photo && activeParticipant.photo !== 'default.jpg' ? (
+                                    <img src={activeParticipant.photo} alt={activeParticipant.name} className="w-20 h-20 rounded-full object-cover mb-3" />
+                                ) : (
+                                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center text-white text-2xl font-bold mb-3">
+                                        {activeParticipant.name?.charAt(0)}
+                                    </div>
+                                )}
+                                <h3 className="font-semibold text-base">{activeParticipant.name}</h3>
+                                <span className="text-xs text-muted-foreground capitalize mt-0.5 px-2 py-0.5 rounded-full bg-muted">{activeParticipant.role}</span>
+                            </div>
+                            {/* Info rows */}
+                            <div className="px-4 py-3 space-y-3 border-b">
+                                <div className="flex items-start gap-3">
+                                    <ShieldCheck className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                                    <div>
+                                        <p className="text-[11px] text-muted-foreground">Role</p>
+                                        <p className="text-sm capitalize">{activeParticipant.role}</p>
+                                    </div>
+                                </div>
+                                {(activeParticipant as any).email && (
+                                    <div className="flex items-start gap-3">
+                                        <Mail className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                                        <div>
+                                            <p className="text-[11px] text-muted-foreground">Email</p>
+                                            <p className="text-sm break-all">{(activeParticipant as any).email}</p>
+                                        </div>
+                                    </div>
+                                )}
+                                {activeParticipant.teamProfile?.position && (
+                                    <div className="flex items-start gap-3">
+                                        <UserCircle className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                                        <div>
+                                            <p className="text-[11px] text-muted-foreground">Position</p>
+                                            <p className="text-sm">{activeParticipant.teamProfile.position}</p>
+                                        </div>
+                                    </div>
+                                )}
+                                {selectedConvo?.createdAt && (
+                                    <div className="flex items-start gap-3">
+                                        <Calendar className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                                        <div>
+                                            <p className="text-[11px] text-muted-foreground">Chat started</p>
+                                            <p className="text-sm">{new Date((selectedConvo as any).createdAt).toLocaleDateString()}</p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            {/* Actions */}
+                            <div className="px-4 py-3 space-y-1">
+                                <button
+                                    onClick={() => { setShowProfile(false); setConfirmClear(true); }}
+                                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-950/20 text-amber-600 text-sm transition-colors"
+                                >
+                                    <Eraser className="h-4 w-4 shrink-0" />
+                                    Clear Chat
+                                </button>
+                                <button
+                                    onClick={() => { setShowProfile(false); setConfirmDelete(true); }}
+                                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-destructive/10 text-destructive text-sm transition-colors"
+                                >
+                                    <Trash2 className="h-4 w-4 shrink-0" />
+                                    Delete Conversation
+                                </button>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+            </div>{/* end Main Chat Area + Profile wrapper */}
+        </div>{/* end outer flex container */}
+
+        {/* ── Confirm: Clear Chat ── */}
+        {confirmClear && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-card w-full max-w-sm rounded-xl shadow-2xl border p-6">
+                    <h3 className="font-semibold text-lg mb-1">Clear chat?</h3>
+                    <p className="text-sm text-muted-foreground mb-5">All messages in this conversation will be permanently deleted. The conversation will remain in your list.</p>
+                    <div className="flex gap-3 justify-end">
+                        <Button variant="outline" onClick={() => setConfirmClear(false)} disabled={isActioning}>Cancel</Button>
+                        <Button variant="destructive" onClick={handleClearChat} disabled={isActioning}>
+                            {isActioning ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Clear Chat'}
+                        </Button>
+                    </div>
+                </motion.div>
+            </div>
+        )}
+
+        {/* ── Confirm: Delete Conversation ── */}
+        {confirmDelete && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-card w-full max-w-sm rounded-xl shadow-2xl border p-6">
+                    <h3 className="font-semibold text-lg mb-1">Delete conversation?</h3>
+                    <p className="text-sm text-muted-foreground mb-5">This will permanently delete the conversation and all its messages. This cannot be undone.</p>
+                    <div className="flex gap-3 justify-end">
+                        <Button variant="outline" onClick={() => setConfirmDelete(false)} disabled={isActioning}>Cancel</Button>
+                        <Button variant="destructive" onClick={handleDeleteConversation} disabled={isActioning}>
+                            {isActioning ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Delete'}
+                        </Button>
+                    </div>
+                </motion.div>
+            </div>
+        )}
 
         {/* ── New Team DM Modal ── */}
         {showNewDmModal && (

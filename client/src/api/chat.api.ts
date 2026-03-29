@@ -16,7 +16,7 @@ export interface Participant {
 export interface Conversation {
     _id: string;
     participants: Participant[];
-    type: 'user_admin' | 'admin_team';
+    type: 'user_admin' | 'admin_team' | 'team_team';
     lastMessage?: {
         _id: string;
         content: string;
@@ -27,6 +27,8 @@ export interface Conversation {
     };
     lastMessageAt: string;
     isActive: boolean;
+    unreadCount?: number;
+    createdAt?: string;
 }
 
 export interface ChatMessage {
@@ -65,8 +67,9 @@ export const chatApi = {
         apiClient.get<{ data: Conversation[] }>('/chat/conversations'),
 
     /** Get or create a conversation with another user.
-     *  For 'user_admin', participantId is optional — server finds admin automatically. */
-    getOrCreateConversation: (participantId: string | undefined, type: 'user_admin' | 'admin_team') =>
+     *  For 'user_admin'/'admin_team', participantId is optional — server finds admin automatically.
+     *  For 'team_team', participantId is required. */
+    getOrCreateConversation: (participantId: string | undefined, type: 'user_admin' | 'admin_team' | 'team_team') =>
         apiClient.post<{ data: Conversation }>('/chat/conversations', { participantId, type }),
 
     /** Get paginated messages for a conversation */
@@ -96,4 +99,16 @@ export const chatApi = {
     /** Admin: list team members available for DM */
     getTeamMembersForChat: () =>
         apiClient.get<{ data: Participant[] }>('/chat/admin/team-members'),
+
+    /** Team: list other team members available for peer DM */
+    getTeamPeersForChat: () =>
+        apiClient.get<{ data: Participant[] }>('/chat/team/peers'),
+
+    /** Admin: delete all messages in a conversation (keeps conversation) */
+    clearChatMessages: (conversationId: string) =>
+        apiClient.delete(`/chat/conversations/${conversationId}/messages`),
+
+    /** Admin: permanently delete a conversation + all its messages */
+    deleteConversation: (conversationId: string) =>
+        apiClient.delete(`/chat/conversations/${conversationId}`),
 };

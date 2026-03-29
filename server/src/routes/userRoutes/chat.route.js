@@ -13,6 +13,9 @@ import {
     uploadChatFile,
     adminGetAllConversations,
     getTeamMembersForChat,
+    getTeamPeersForChat,
+    clearChatMessages,
+    deleteConversation,
 } from "../../controllers/usersControllers/chat.controller.js";
 
 const router = express.Router();
@@ -28,8 +31,13 @@ router.get("/conversations/:id/messages", getMessages);
 // ── File upload (returns Cloudinary URL; client sends as socket message) ──────
 router.post("/upload", upload.single("file"), uploadChatFile);
 
+// ── Team member routes ────────────────────────────────────────────────────────
+router.get("/team/peers", getTeamPeersForChat);
+
 // ── Admin-only routes ─────────────────────────────────────────────────────────
 router.get("/admin/conversations", adminGetAllConversations);
 router.get("/admin/team-members", getTeamMembersForChat);
+router.delete("/conversations/:id/messages", clearChatMessages);
+router.delete("/conversations/:id", deleteConversation);
 
 export default router;

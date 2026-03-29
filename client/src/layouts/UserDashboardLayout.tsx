@@ -18,7 +18,7 @@ export function UserDashboardLayout() {
   const { theme, setTheme } = useTheme();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { chatUnreadCount } = useNotifications();
+  useNotifications();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -77,15 +77,10 @@ export function UserDashboardLayout() {
               onClick={() => navigate('/user-dashboard/messages')}
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.96 }}
-              className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors group relative"
+              className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors group"
             >
               <MessageSquare className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
               <span className="text-sm font-medium">Support Chat</span>
-              {chatUnreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 h-5 min-w-[20px] px-1 rounded-full bg-primary text-[10px] text-primary-foreground font-bold flex items-center justify-center shadow-[0_0_8px_rgba(139,92,246,0.5)]">
-                  {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
-                </span>
-              )}
             </motion.button>
 
             <NotificationBell notificationsRoute="/user-dashboard/notifications" chatRoute="/user-dashboard/messages" />

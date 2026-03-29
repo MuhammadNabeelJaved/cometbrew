@@ -4,6 +4,7 @@
  * Types:
  *  - "user_admin"  → one dedicated thread per user with the admin
  *  - "admin_team"  → DM between admin and a team member
+ *  - "team_team"   → DM between two team members
  *
  * Participants array always contains exactly 2 user ObjectIds.
  * Compound index on (participants + type) makes admin search O(log n).
@@ -22,7 +23,7 @@ const conversationSchema = new mongoose.Schema(
 
         type: {
             type: String,
-            enum: ["user_admin", "admin_team"],
+            enum: ["user_admin", "admin_team", "team_team"],
             required: true,
         },
 

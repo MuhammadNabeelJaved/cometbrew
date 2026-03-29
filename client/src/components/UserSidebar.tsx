@@ -35,7 +35,7 @@ export function UserSidebar({ isOpen = false, onClose }: UserSidebarProps) {
   const navigate = useNavigate();
   const { isVisible } = usePageVisibility();
   const { user, logout } = useAuth();
-  const { chatUnreadCount } = useNotifications();
+  const { chatUnreadCount } = useNotifications({ enableToast: false });
 
   const handleLogout = async () => {
     await logout();
@@ -176,11 +176,6 @@ export function UserSidebar({ isOpen = false, onClose }: UserSidebarProps) {
                         ? "drop-shadow-[0_0_5px_rgba(139,92,246,0.5)]"
                         : "group-hover:text-foreground"
                     )} />
-                    {link.path === '/user-dashboard/messages' && chatUnreadCount > 0 && (
-                      <span className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-primary text-[9px] text-primary-foreground font-bold flex items-center justify-center shadow-[0_0_6px_rgba(139,92,246,0.6)]">
-                        {chatUnreadCount > 9 ? '9+' : chatUnreadCount}
-                      </span>
-                    )}
                   </div>
 
                   <span className="hidden lg:flex items-center font-medium text-sm flex-1">

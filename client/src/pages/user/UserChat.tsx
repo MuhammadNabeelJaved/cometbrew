@@ -7,8 +7,14 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
-import { Send, Paperclip, Phone, Video, MoreVertical, Loader2, CheckCheck } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Send, Paperclip, Phone, Video, MoreVertical, Loader2, CheckCheck,
+    UserCircle, BellOff, Bell, Eraser, X, Mail, ShieldCheck, Calendar, ChevronRight, ArrowDown,
+} from 'lucide-react';
+import {
+    DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+    DropdownMenuSeparator, DropdownMenuTrigger,
+} from '../../components/ui/dropdown-menu';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
@@ -30,11 +36,19 @@ export default function UserChat() {
     const [isUploading, setIsUploading] = useState(false);
     const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
     const [highlightedMsgId, setHighlightedMsgId] = useState<string | null>(null);
+    const [showProfile, setShowProfile] = useState(false);
+    const [isMuted, setIsMuted] = useState(false);
+    const [confirmClear, setConfirmClear] = useState(false);
+    const [isActioning, setIsActioning] = useState(false);
+    const [showScrollBtn, setShowScrollBtn] = useState(false);
+    const [newBelowCount, setNewBelowCount] = useState(0);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const messagesContainerRef = useRef<HTMLDivElement>(null);
     const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const scrolledToMsgRef = useRef<string | null>(null);
+    const isAtBottomRef = useRef(true);
+    const prevMsgCountRef = useRef(0);
 
     // ── Load or create the user ↔ admin conversation ────────────────────────
     useEffect(() => {
@@ -64,6 +78,10 @@ export default function UserChat() {
 
     const loadMessages = async (conversationId: string) => {
         try {
+            prevMsgCountRef.current = 0;
+            setNewBelowCount(0);
+            setShowScrollBtn(false);
+            isAtBottomRef.current = true;
             const res = await chatApi.getMessages(conversationId, 1, 50);
             setMessages(res.data.data?.messages || []);
         } catch (err: any) {
@@ -118,12 +136,40 @@ export default function UserChat() {
         };
     }, [socket, conversation?._id]);
 
+    // ── Scroll handlers ──────────────────────────────────────────────────────
+    const handleMessagesScroll = () => {
+        const el = messagesContainerRef.current;
+        if (!el) return;
+        const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+        isAtBottomRef.current = atBottom;
+        setShowScrollBtn(!atBottom);
+        if (atBottom) setNewBelowCount(0);
+    };
+
+    const scrollToBottom = () => {
+        const el = messagesContainerRef.current;
+        if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+        setNewBelowCount(0);
+        setShowScrollBtn(false);
+    };
+
     // ── Auto-scroll to newest message (skip when navigating to a specific message) ──
     useEffect(() => {
         const targetId = searchParams.get('messageId');
         if (targetId && messages.find((m) => m._id === targetId)) return;
+
+        const isNewMsg = messages.length > prevMsgCountRef.current && prevMsgCountRef.current > 0;
+        prevMsgCountRef.current = messages.length;
+
         const el = messagesContainerRef.current;
-        if (el) el.scrollTop = el.scrollHeight;
+        if (!el) return;
+
+        if (isAtBottomRef.current || !isNewMsg) {
+            el.scrollTop = el.scrollHeight;
+        } else {
+            // New message arrived while user is scrolled up — show badge
+            setNewBelowCount(prev => prev + 1);
+        }
     }, [messages]);
 
     // ── Scroll to + highlight a specific message from notification ────────────
@@ -219,6 +265,18 @@ export default function UserChat() {
         }
     };
 
+    const handleClearChat = async () => {
+        if (!conversation) return;
+        setIsActioning(true);
+        try {
+            await chatApi.clearChatMessages(conversation._id);
+            setMessages([]);
+            setConfirmClear(false);
+            toast.success('Chat cleared');
+        } catch { toast.error('Failed to clear chat'); }
+        finally { setIsActioning(false); }
+    };
+
     // ── Admin participant from conversation ──────────────────────────────────
     const adminParticipant = conversation?.participants?.find(
         (p) => p.role === 'admin'
@@ -228,6 +286,7 @@ export default function UserChat() {
         new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     return (
+        <>
         <div className="h-[calc(100vh-140px)] flex flex-col lg:flex-row gap-6">
             {/* Sidebar */}
             <Card className="w-full lg:w-80 flex flex-col border-border/50 overflow-hidden">
@@ -310,14 +369,39 @@ export default function UserChat() {
                         <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
                             <Video className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="text-muted-foreground">
-                            <MoreVertical className="h-4 w-4" />
-                        </Button>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="text-muted-foreground">
+                                    <MoreVertical className="h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-52">
+                                {adminParticipant && (
+                                    <DropdownMenuItem onClick={() => setShowProfile(v => !v)}>
+                                        <UserCircle className="h-4 w-4 mr-2" />
+                                        View Profile
+                                        <ChevronRight className="h-3 w-3 ml-auto opacity-50" />
+                                    </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem onClick={() => { setIsMuted(v => !v); toast.success(isMuted ? 'Notifications unmuted' : 'Notifications muted'); }}>
+                                    {isMuted ? <><Bell className="h-4 w-4 mr-2" />Unmute Notifications</> : <><BellOff className="h-4 w-4 mr-2" />Mute Notifications</>}
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                    className="text-amber-600 focus:text-amber-600"
+                                    onClick={() => setConfirmClear(true)}
+                                >
+                                    <Eraser className="h-4 w-4 mr-2" />
+                                    Clear Chat
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
                 </div>
 
                 {/* Messages */}
-                <div ref={messagesContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-3 bg-muted/20">
+                <div className="flex-1 relative overflow-hidden">
+                <div ref={messagesContainerRef} onScroll={handleMessagesScroll} className="h-full overflow-y-auto overflow-x-hidden px-4 py-3 bg-muted/20">
                     {isLoadingConvo ? (
                         <div className="flex justify-center items-center h-full">
                             <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -427,6 +511,27 @@ export default function UserChat() {
                     )}
                     <div ref={messagesEndRef} />
                 </div>
+                {/* Scroll to bottom button */}
+                <AnimatePresence>
+                    {showScrollBtn && (
+                        <motion.button
+                            initial={{ opacity: 0, scale: 0.8, y: 8 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.8, y: 8 }}
+                            transition={{ duration: 0.18 }}
+                            onClick={scrollToBottom}
+                            className="absolute bottom-4 right-4 z-10 flex items-center justify-center w-10 h-10 rounded-full bg-background/90 backdrop-blur-sm border-2 border-primary/50 text-primary shadow-xl shadow-black/20 hover:bg-primary hover:text-primary-foreground hover:border-primary hover:scale-110 transition-all duration-200"
+                        >
+                            {newBelowCount > 0 && (
+                                <span className="absolute -top-2 -right-2 h-[18px] min-w-[18px] px-1 rounded-full bg-destructive text-[9px] text-white font-bold flex items-center justify-center shadow-sm">
+                                    {newBelowCount > 99 ? '99+' : newBelowCount}
+                                </span>
+                            )}
+                            <ArrowDown className="h-4 w-4" />
+                        </motion.button>
+                    )}
+                </AnimatePresence>
+                </div>{/* end relative wrapper */}
 
                 {/* Input */}
                 <div className="border-t border-border/50 bg-background">
@@ -482,5 +587,76 @@ export default function UserChat() {
                 </div>
             </Card>
         </div>
+
+        {/* ── Profile Slide Panel ── */}
+        <AnimatePresence>
+            {showProfile && adminParticipant && (
+                <motion.div
+                    initial={{ x: '100%' }}
+                    animate={{ x: 0 }}
+                    exit={{ x: '100%' }}
+                    transition={{ duration: 0.25, ease: 'easeInOut' }}
+                    className="fixed right-0 top-0 h-full w-72 bg-card border-l shadow-2xl z-50 flex flex-col"
+                >
+                    <div className="flex items-center justify-between px-4 py-3 border-b">
+                        <span className="font-semibold text-sm">Contact Info</span>
+                        <button onClick={() => setShowProfile(false)} className="p-1 rounded-full hover:bg-accent text-muted-foreground">
+                            <X className="h-4 w-4" />
+                        </button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto">
+                        <div className="flex flex-col items-center py-6 px-4 border-b">
+                            {adminParticipant.photo && adminParticipant.photo !== 'default.jpg' ? (
+                                <img src={adminParticipant.photo} alt={adminParticipant.name} className="w-20 h-20 rounded-full object-cover mb-3" />
+                            ) : (
+                                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center text-white text-2xl font-bold mb-3">
+                                    {adminParticipant.name?.charAt(0) ?? 'A'}
+                                </div>
+                            )}
+                            <h3 className="font-semibold text-base">{adminParticipant.name ?? 'Admin Support'}</h3>
+                            <span className="text-xs text-muted-foreground capitalize mt-0.5 px-2 py-0.5 rounded-full bg-muted">{adminParticipant.role}</span>
+                        </div>
+                        <div className="px-4 py-3 space-y-3 border-b">
+                            <div className="flex items-start gap-3">
+                                <ShieldCheck className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                                <div><p className="text-[11px] text-muted-foreground">Role</p><p className="text-sm capitalize">{adminParticipant.role}</p></div>
+                            </div>
+                            {conversation?.createdAt && (
+                                <div className="flex items-start gap-3">
+                                    <Calendar className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                                    <div><p className="text-[11px] text-muted-foreground">Chat started</p><p className="text-sm">{new Date(conversation.createdAt).toLocaleDateString()}</p></div>
+                                </div>
+                            )}
+                        </div>
+                        <div className="px-4 py-3">
+                            <button
+                                onClick={() => { setShowProfile(false); setConfirmClear(true); }}
+                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-950/20 text-amber-600 text-sm transition-colors"
+                            >
+                                <Eraser className="h-4 w-4 shrink-0" />
+                                Clear Chat
+                            </button>
+                        </div>
+                    </div>
+                </motion.div>
+            )}
+        </AnimatePresence>
+
+        {/* ── Confirm: Clear Chat ── */}
+        {confirmClear && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-card w-full max-w-sm rounded-xl shadow-2xl border p-6">
+                    <h3 className="font-semibold text-lg mb-1">Clear chat?</h3>
+                    <p className="text-sm text-muted-foreground mb-5">All messages will be permanently deleted.</p>
+                    <div className="flex gap-3 justify-end">
+                        <Button variant="outline" onClick={() => setConfirmClear(false)} disabled={isActioning}>Cancel</Button>
+                        <Button variant="destructive" onClick={handleClearChat} disabled={isActioning}>
+                            {isActioning ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Clear Chat'}
+                        </Button>
+                    </div>
+                </motion.div>
+            </div>
+        )}
+        </>
     );
 }

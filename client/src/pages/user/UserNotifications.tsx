@@ -18,7 +18,7 @@ export default function UserNotifications() {
         markAllAsRead,
         deleteNotification,
         clearAll,
-    } = useNotifications();
+    } = useNotifications({ enableToast: false });
     const [filter, setFilter] = useState<'all' | 'unread'>('all');
 
     const filtered = filter === 'all' ? notifications : notifications.filter((n) => !n.isRead);
