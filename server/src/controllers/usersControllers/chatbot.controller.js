@@ -801,189 +801,191 @@ export const syncFromDatabase = asyncHandler(async (req, res) => {
   if (req.user.role !== 'admin') throw new AppError('Admin only', 403);
 
   const results = [];
+  const errors  = [];
   const adminId = req.user._id;
 
+  const tryUpsert = async (label, opts) => {
+    try {
+      results.push(await upsertKnowledgeEntry(opts));
+    } catch (e) {
+      errors.push({ section: label, error: e.message });
+    }
+  };
+
   // ── 1. Services ────────────────────────────────────────────────────────────
-  const services = await Services.find({ isActive: true }).lean();
-  for (const svc of services) {
-    const pricingText = (svc.pricingPlans || [])
-      .map(p => `  • ${p.name}: ${p.price ? '$' + p.price : 'Contact for pricing'} — ${p.description || ''}`)
-      .join('\n');
-    const faqText = (svc.faqs || [])
-      .map(f => `  Q: ${f.question}\n  A: ${f.answer}`)
-      .join('\n');
-    const featuresText = (svc.features || []).map(f => `  • ${f.title || f}`).join('\n');
+  try {
+    const services = await Services.find({ isActive: true }).lean();
+    for (const svc of services) {
+      const pricingText = (svc.pricingPlans || [])
+        .map(p => {
+          const amt = p.price?.amount;
+          const priceStr = amt ? `$${amt}${p.price.currency ? ' ' + p.price.currency : ''}` : 'Contact for pricing';
+          return `  • ${p.name || 'Plan'}: ${priceStr} — ${p.description || ''}`;
+        })
+        .join('\n');
+      const faqText = (svc.faqs || [])
+        .map(f => `  Q: ${f.question}\n  A: ${f.answer}`)
+        .join('\n');
+      const featuresText = (svc.features || []).map(f => `  • ${f.title || String(f)}`).join('\n');
 
-    const content =
-      `Service: ${svc.title}\n` +
-      (svc.subtitle        ? `Tagline: ${svc.subtitle}\n`          : '') +
-      (svc.description     ? `Description: ${svc.description}\n`   : '') +
-      (svc.category        ? `Category: ${svc.category}\n`         : '') +
-      (svc.deliveryTime    ? `Delivery Time: ${svc.deliveryTime}\n` : '') +
-      (featuresText        ? `\nKey Features:\n${featuresText}\n`   : '') +
-      (pricingText         ? `\nPricing Plans:\n${pricingText}\n`   : '') +
-      (faqText             ? `\nFrequently Asked Questions:\n${faqText}\n` : '');
+      const content =
+        `Service: ${svc.title}\n` +
+        (svc.subtitle        ? `Tagline: ${svc.subtitle}\n`          : '') +
+        (svc.description     ? `Description: ${svc.description}\n`   : '') +
+        (svc.category        ? `Category: ${svc.category}\n`         : '') +
+        (svc.deliveryTime    ? `Delivery Time: ${svc.deliveryTime}\n` : '') +
+        (featuresText        ? `\nKey Features:\n${featuresText}\n`   : '') +
+        (pricingText         ? `\nPricing Plans:\n${pricingText}\n`   : '') +
+        (faqText             ? `\nFrequently Asked Questions:\n${faqText}\n` : '');
 
-    results.push(await upsertKnowledgeEntry({
-      syncKey:   `sync:service:${svc.slug || svc._id}`,
-      title:     `Service — ${svc.title}`,
-      content,
-      type:      'auto',
-      tags:      ['service', svc.category || ''].filter(Boolean),
-      createdBy: adminId,
-    }));
-  }
+      await tryUpsert(`service:${svc.title}`, {
+        syncKey:   `sync:service:${svc.slug || svc._id}`,
+        title:     `Service — ${svc.title}`,
+        content,
+        type:      'auto',
+        tags:      ['service', svc.category || ''].filter(Boolean),
+        createdBy: adminId,
+      });
+    }
+  } catch (e) { errors.push({ section: 'services-fetch', error: e.message }); }
 
   // ── 2. Portfolio Projects (public only) ────────────────────────────────────
-  const projects = await AdminProject.find({ isPublic: true, isArchived: false }).lean();
-  for (const proj of projects) {
-    const content =
-      `Portfolio Project: ${proj.projectTitle}\n` +
-      (proj.clientName       ? `Client: ${proj.clientName}\n`        : '') +
-      (proj.category         ? `Category: ${proj.category}\n`        : '') +
-      (proj.yourRole         ? `Our Role: ${proj.yourRole}\n`        : '') +
-      (proj.projectDescription ? `Description: ${proj.projectDescription}\n` : '') +
-      (proj.techStack?.length  ? `Technologies: ${proj.techStack.join(', ')}\n` : '') +
-      (proj.tags?.length       ? `Tags: ${proj.tags.join(', ')}\n`           : '') +
-      (proj.clientFeedback?.comment ? `\nClient Feedback: "${proj.clientFeedback.comment}" (${proj.clientFeedback.rating}/5 stars)\n` : '');
+  try {
+    const projects = await AdminProject.find({ isPublic: true, isArchived: false }).lean();
+    for (const proj of projects) {
+      const content =
+        `Portfolio Project: ${proj.projectTitle}\n` +
+        (proj.clientName         ? `Client: ${proj.clientName}\n`          : '') +
+        (proj.category           ? `Category: ${proj.category}\n`          : '') +
+        (proj.yourRole           ? `Our Role: ${proj.yourRole}\n`          : '') +
+        (proj.projectDescription ? `Description: ${proj.projectDescription}\n` : '') +
+        (proj.techStack?.length  ? `Technologies: ${proj.techStack.join(', ')}\n` : '') +
+        (proj.tags?.length       ? `Tags: ${proj.tags.join(', ')}\n`       : '') +
+        (proj.clientFeedback?.comment ? `\nClient Feedback: "${proj.clientFeedback.comment}" (${proj.clientFeedback.rating}/5 stars)\n` : '');
 
-    results.push(await upsertKnowledgeEntry({
-      syncKey:   `sync:project:${proj._id}`,
-      title:     `Portfolio — ${proj.projectTitle}`,
-      content,
-      type:      'auto',
-      tags:      ['portfolio', 'project', proj.category || ''].filter(Boolean),
-      createdBy: adminId,
-    }));
-  }
+      await tryUpsert(`project:${proj.projectTitle}`, {
+        syncKey:   `sync:project:${proj._id}`,
+        title:     `Portfolio — ${proj.projectTitle}`,
+        content,
+        type:      'auto',
+        tags:      ['portfolio', 'project', proj.category || ''].filter(Boolean),
+        createdBy: adminId,
+      });
+    }
+  } catch (e) { errors.push({ section: 'projects-fetch', error: e.message }); }
 
   // ── 3. CMS — Contact Info + Why Choose Us + Testimonials ──────────────────
-  const cms = await CMS.findOne().lean();
-  if (cms) {
-    // Contact info
-    if (cms.contactInfo) {
-      const ci = cms.contactInfo;
-      const content =
-        `Business Contact Information\n` +
-        (ci.email         ? `Email: ${ci.email}\n`                : '') +
-        (ci.phone         ? `Phone: ${ci.phone}\n`                : '') +
-        (ci.address       ? `Address: ${ci.address}\n`            : '') +
-        (ci.businessHours ? `Business Hours: ${ci.businessHours}\n` : '') +
-        (cms.socialLinks?.linkedin  ? `LinkedIn: ${cms.socialLinks.linkedin}\n`  : '') +
-        (cms.socialLinks?.twitter   ? `Twitter/X: ${cms.socialLinks.twitter}\n`  : '') +
-        (cms.socialLinks?.instagram ? `Instagram: ${cms.socialLinks.instagram}\n` : '') +
-        (cms.socialLinks?.github    ? `GitHub: ${cms.socialLinks.github}\n`       : '');
+  try {
+    const cms = await CMS.findOne().lean();
+    if (cms) {
+      if (cms.contactInfo) {
+        const ci = cms.contactInfo;
+        const content =
+          `Business Contact Information\n` +
+          (ci.email         ? `Email: ${ci.email}\n`                : '') +
+          (ci.phone         ? `Phone: ${ci.phone}\n`                : '') +
+          (ci.address       ? `Address: ${ci.address}\n`            : '') +
+          (ci.businessHours ? `Business Hours: ${ci.businessHours}\n` : '') +
+          (cms.socialLinks?.linkedin  ? `LinkedIn: ${cms.socialLinks.linkedin}\n`  : '') +
+          (cms.socialLinks?.twitter   ? `Twitter/X: ${cms.socialLinks.twitter}\n`  : '') +
+          (cms.socialLinks?.instagram ? `Instagram: ${cms.socialLinks.instagram}\n` : '') +
+          (cms.socialLinks?.github    ? `GitHub: ${cms.socialLinks.github}\n`       : '');
+        await tryUpsert('cms:contact', {
+          syncKey: 'sync:cms:contact', title: 'Contact Information',
+          content, type: 'auto', tags: ['contact', 'location', 'hours'], createdBy: adminId,
+        });
+      }
 
-      results.push(await upsertKnowledgeEntry({
-        syncKey:   'sync:cms:contact',
-        title:     'Contact Information',
-        content,
-        type:      'auto',
-        tags:      ['contact', 'location', 'hours'],
-        createdBy: adminId,
-      }));
+      if (cms.whyChooseUs) {
+        const wcu = cms.whyChooseUs;
+        const points = (wcu.keyPoints || []).map(p => `  • ${p.title}: ${p.description || ''}`).join('\n');
+        const content =
+          `Why Choose Us\n` +
+          (wcu.titleLine1   ? `${wcu.titleLine1} ${wcu.titleLine2Highlighted || ''}\n` : '') +
+          (wcu.description  ? `${wcu.description}\n` : '') +
+          (points           ? `\nKey Advantages:\n${points}` : '');
+        await tryUpsert('cms:why-us', {
+          syncKey: 'sync:cms:why-us', title: 'Why Choose Us',
+          content, type: 'auto', tags: ['about', 'why-us', 'advantages'], createdBy: adminId,
+        });
+      }
+
+      if (cms.testimonials?.length) {
+        const testimonialText = cms.testimonials
+          .slice(0, 10)
+          .map(t => `"${t.quote || t.text || ''}" — ${t.name || t.author || 'Client'}${t.company ? `, ${t.company}` : ''}`)
+          .join('\n\n');
+        await tryUpsert('cms:testimonials', {
+          syncKey: 'sync:cms:testimonials', title: 'Client Testimonials',
+          content: `Client Testimonials & Reviews\n\n${testimonialText}`,
+          type: 'auto', tags: ['testimonials', 'reviews', 'clients'], createdBy: adminId,
+        });
+      }
     }
-
-    // Why Choose Us
-    if (cms.whyChooseUs) {
-      const wcu = cms.whyChooseUs;
-      const points = (wcu.keyPoints || []).map(p => `  • ${p.title}: ${p.description || ''}`).join('\n');
-      const content =
-        `Why Choose Us\n` +
-        (wcu.titleLine1 ? `${wcu.titleLine1} ${wcu.titleLine2Highlighted || ''}\n` : '') +
-        (wcu.description ? `${wcu.description}\n` : '') +
-        (points ? `\nKey Advantages:\n${points}` : '');
-
-      results.push(await upsertKnowledgeEntry({
-        syncKey:   'sync:cms:why-us',
-        title:     'Why Choose Us',
-        content,
-        type:      'auto',
-        tags:      ['about', 'why-us', 'advantages'],
-        createdBy: adminId,
-      }));
-    }
-
-    // Testimonials
-    if (cms.testimonials?.length) {
-      const testimonialText = cms.testimonials
-        .slice(0, 10)
-        .map(t => `"${t.quote || t.text}" — ${t.name || t.author}${t.company ? `, ${t.company}` : ''}`)
-        .join('\n\n');
-      results.push(await upsertKnowledgeEntry({
-        syncKey:   'sync:cms:testimonials',
-        title:     'Client Testimonials',
-        content:   `Client Testimonials & Reviews\n\n${testimonialText}`,
-        type:      'auto',
-        tags:      ['testimonials', 'reviews', 'clients'],
-        createdBy: adminId,
-      }));
-    }
-  }
+  } catch (e) { errors.push({ section: 'cms-fetch', error: e.message }); }
 
   // ── 4. Active Job Postings ─────────────────────────────────────────────────
-  const jobs = await Jobs.find({ status: 'Active' }).lean();
-  if (jobs.length) {
-    const jobsText = jobs.map(j => {
-      const salary = j.salaryRange?.min
-        ? `$${Math.round(j.salaryRange.min / 1000)}k–$${Math.round(j.salaryRange.max / 1000)}k`
-        : 'Competitive';
-      return `• ${j.jobTitle} (${j.department}) — ${j.employmentType}, ${j.workMode}, ${salary}`;
-    }).join('\n');
-
-    results.push(await upsertKnowledgeEntry({
-      syncKey:   'sync:jobs:active',
-      title:     'Current Job Openings',
-      content:   `We Are Hiring! Current Open Positions:\n\n${jobsText}\n\nVisit our Careers page to apply.`,
-      type:      'auto',
-      tags:      ['jobs', 'hiring', 'careers'],
-      createdBy: adminId,
-    }));
-  }
+  try {
+    const jobs = await Jobs.find({ status: 'Active' }).lean();
+    if (jobs.length) {
+      const jobsText = jobs.map(j => {
+        const salary = j.salaryRange?.min
+          ? `$${Math.round(j.salaryRange.min / 1000)}k–$${Math.round(j.salaryRange.max / 1000)}k`
+          : 'Competitive';
+        return `• ${j.jobTitle} (${j.department || 'General'}) — ${j.employmentType || ''}, ${j.workMode || ''}, ${salary}`;
+      }).join('\n');
+      await tryUpsert('jobs:active', {
+        syncKey: 'sync:jobs:active', title: 'Current Job Openings',
+        content: `We Are Hiring! Current Open Positions:\n\n${jobsText}\n\nVisit our Careers page to apply.`,
+        type: 'auto', tags: ['jobs', 'hiring', 'careers'], createdBy: adminId,
+      });
+    }
+  } catch (e) { errors.push({ section: 'jobs-fetch', error: e.message }); }
 
   // ── 5. Approved Reviews ────────────────────────────────────────────────────
-  const reviews = await Reviews.find({ status: 'approved' })
-    .populate('client', 'name')
-    .lean();
-  if (reviews.length) {
-    const reviewsText = reviews
-      .slice(0, 10)
-      .map(r => `★${r.rating}/5 — "${r.reviewText}" — ${r.client?.name || 'Client'}`)
-      .join('\n\n');
-    results.push(await upsertKnowledgeEntry({
-      syncKey:   'sync:reviews',
-      title:     'Client Reviews & Ratings',
-      content:   `Client Reviews\n\n${reviewsText}`,
-      type:      'auto',
-      tags:      ['reviews', 'testimonials', 'ratings'],
-      createdBy: adminId,
-    }));
-  }
+  try {
+    const reviews = await Reviews.find({ status: 'approved' }).populate('client', 'name').lean();
+    if (reviews.length) {
+      const reviewsText = reviews
+        .slice(0, 10)
+        .map(r => `★${r.rating}/5 — "${r.reviewText}" — ${r.client?.name || 'Client'}`)
+        .join('\n\n');
+      await tryUpsert('reviews', {
+        syncKey: 'sync:reviews', title: 'Client Reviews & Ratings',
+        content: `Client Reviews\n\n${reviewsText}`,
+        type: 'auto', tags: ['reviews', 'testimonials', 'ratings'], createdBy: adminId,
+      });
+    }
+  } catch (e) { errors.push({ section: 'reviews-fetch', error: e.message }); }
 
   // ── 6. Team Members ────────────────────────────────────────────────────────
-  const team = await User.find({ role: 'team', deletedAt: null })
-    .select('name teamProfile')
-    .lean();
-  if (team.length) {
-    const teamText = team.map(m => {
-      const tp = m.teamProfile || {};
-      return `• ${m.name}${tp.position ? ` — ${tp.position}` : ''}${tp.department ? ` (${tp.department})` : ''}${tp.bio ? `\n  ${tp.bio}` : ''}${tp.skills?.length ? `\n  Skills: ${tp.skills.join(', ')}` : ''}`;
-    }).join('\n\n');
+  try {
+    const team = await User.find({ role: 'team', deletedAt: { $in: [null, undefined] } })
+      .select('name teamProfile')
+      .lean();
+    if (team.length) {
+      const teamText = team.map(m => {
+        const tp = m.teamProfile || {};
+        return `• ${m.name}` +
+          (tp.position  ? ` — ${tp.position}`  : '') +
+          (tp.department ? ` (${tp.department})` : '') +
+          (tp.bio       ? `\n  ${tp.bio}`       : '') +
+          (tp.skills?.length ? `\n  Skills: ${tp.skills.join(', ')}` : '');
+      }).join('\n\n');
+      await tryUpsert('team', {
+        syncKey: 'sync:team', title: 'Our Team',
+        content: `Our Team Members\n\n${teamText}`,
+        type: 'auto', tags: ['team', 'people', 'staff'], createdBy: adminId,
+      });
+    }
+  } catch (e) { errors.push({ section: 'team-fetch', error: e.message }); }
 
-    results.push(await upsertKnowledgeEntry({
-      syncKey:   'sync:team',
-      title:     'Our Team',
-      content:   `Our Team Members\n\n${teamText}`,
-      type:      'auto',
-      tags:      ['team', 'people', 'staff'],
-      createdBy: adminId,
-    }));
-  }
-
-  const created = results.filter(r => r.action === 'created').length;
-  const updated = results.filter(r => r.action === 'updated').length;
+  const created = results.filter(r => r?.action === 'created').length;
+  const updated = results.filter(r => r?.action === 'updated').length;
 
   successResponse(res, `Sync complete — ${created} created, ${updated} updated`, {
-    created, updated, total: results.length, details: results,
+    created, updated, total: results.length,
+    details: results.filter(Boolean),
+    ...(errors.length ? { warnings: errors } : {}),
   });
 });

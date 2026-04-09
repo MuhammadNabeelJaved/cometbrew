@@ -51,11 +51,10 @@ const chatbotKnowledgeSchema = new mongoose.Schema({
 chatbotKnowledgeSchema.index({ title: 'text', content: 'text', tags: 'text' });
 
 // Auto-compute wordCount before every save.
-chatbotKnowledgeSchema.pre('save', function (next) {
+chatbotKnowledgeSchema.pre('save', async function () {
   if (this.isModified('content')) {
     this.wordCount = this.content.trim().split(/\s+/).filter(Boolean).length;
   }
-  next();
 });
 
 export default mongoose.model('ChatbotKnowledge', chatbotKnowledgeSchema);
