@@ -415,6 +415,67 @@ Every CRUD operation instantly reflects across all dashboards without a page rel
 - `resolveApiKey(cfg)` finds the entry with `isActive: true` (no provider filter — avoids mismatch between `provider:'anthropic'` and legacy `activeProvider:'claude'`)
 - Fallback: `process.env.ANTHROPIC_API_KEY` if no DB key exists
 
+### Cost-Optimisation Pipeline (chat endpoint)
+Every message passes through a 5-layer decision flow **before** calling the AI API:
+
+| Layer | Mechanism | API Cost |
+|---|---|---|
+| 1. Rate limit | 15 req/min per IP (in-memory `Map`) | — |
+| 2. Greeting detection | Regex on common greetings → predefined reply | Zero |
+| 3. Off-topic filter | Pattern match on non-business topics → polite rejection | Zero |
+| 4. FAQ keyword match | Tokenise query → score all `type:'faq'` KB entries → ≥60% threshold → return content | Zero (DB only) |
+| 5. Response cache | Normalised query key → in-memory `Map`, 1h TTL, 500-entry LRU | Zero |
+| 6. AI API call | Only reached if all layers above miss | Full cost |
+
+**Smart model routing** — inside Layer 6:
+- Short queries (< 120 chars, ≤ 4 history turns) → `cfg.simpleModel` (default: `claude-haiku-4-5-20251001`)
+- Complex queries → `cfg.activeModel` (default: `claude-sonnet-4-6`)
+- Both configurable per-model from ChatbotManager → Configuration tab
+
+**Context optimisation** — history trimmed to last 5 turns (was 10). Concise-response instruction injected into system prompt.
+
+**`simpleModel` field**: added to `ChatbotConfig` model and exposed in `GET /config` response as `simpleModel` + `availableModels` (full catalog with tier/badge/desc).
+
+### CTA Navigation Button System
+Chat responses can include clickable pill buttons that navigate the user to specific pages:
+- **Marker syntax**: `[CTA:/path|Button Label]` — placed on its own line in Claude's response
+- **Client parsing**: `renderMarkdown()` in `Chatbot.tsx` collects CTA markers; buttons render after the response text only when `streaming === false`
+- **On click**: closes the chatbot widget, calls `navigate(path)` via React Router
+- **Dynamic page list**: the `chat` endpoint calls `getActivePublicNavLinks()` at request time — only pages with `category:'public'`, `status:'active'`, and `isHidden:false` in `PageStatus` collection are included. Claude is explicitly told not to link to any other path.
+- **Always-on pages** (not in PageStatus, always included): `/login`, `/signup`, `/privacy`, `/terms`, `/cookies`
+- **CTA label map**: `_PAGE_CTA_LABELS` in the controller maps each known path to a human-friendly button label (e.g. `/careers` → `See Open Positions`); custom pages fall back to their `label` field from DB
+- **Portfolio project paths**: only injected when `/portfolio` is itself active; fetches `AdminProject` docs with `isPublic:true` and injects `/portfolio/{_id}` per project
+- **Rules enforced via system prompt**: max 3 CTAs per response, only when genuinely relevant, use ONLY the dynamically-generated list — prevents linking to pages under maintenance or coming-soon
+
+### Typewriter Animation
+Chatbot responses render character-by-character to simulate real-time typing:
+- **Buffer approach**: SSE chunks go into a per-message buffer (`twBufferRef` Map) instead of directly into state
+- **Interval**: a 15ms `setInterval` reads the buffer and advances a `displayed` pointer by `CHARS_PER_TICK = 4` chars per tick (~267 chars/sec)
+- **Streaming cursor**: `renderMarkdown` shows a pulsing block cursor while `isStreaming === true`
+- **Completion**: when SSE marks `done = true` AND `displayed === buffer.length`, the interval clears itself and sets `isStreaming: false` (revealing CTA buttons)
+- **Error bypass**: errors skip the typewriter and set content immediately
+- **Cleanup**: timers are cleared on unmount and on conversation clear
+
+### Tone Selector (Admin Config)
+Six tone presets configurable via ChatbotManager → Configuration tab:
+| Tone | Behaviour |
+|---|---|
+| `professional` | Polished, concise, structured |
+| `friendly` | Warm, conversational, contractions OK |
+| `formal` | Strictly formal, no contractions |
+| `casual` | Relaxed, short sentences, light humour |
+| `expert` | Technical terminology, authoritative |
+| `empathetic` | Acknowledges user's situation first |
+
+- Stored as `tone` field on `ChatbotConfig` singleton
+- `TONE_INSTRUCTIONS` map in controller injects the appropriate paragraph into the system prompt
+
+### Database Sync (Admin)
+`POST /api/v1/chatbot/knowledge/sync` (admin only) — auto-populates the knowledge base from live DB data:
+- Syncs: Services, Portfolio Projects, Team members, Jobs, Testimonials, CMS (About/Process/Why-Us), Company Info
+- Uses a `syncKey` tag (e.g. `sync:service:web-dev`) to upsert safely (idempotent)
+- Each section is wrapped in an independent `try/catch` so a failure in one section doesn't abort others
+
 ### Adding a new knowledge type
 1. Add the new value to the `type` enum in `ChatbotKnowledge.model.js`
 2. Add it to the `KnowledgeEntry` TypeScript interface in `chatbot.api.ts`
@@ -426,6 +487,38 @@ Every CRUD operation instantly reflects across all dashboards without a page rel
 |---|---|
 | `ANTHROPIC_API_KEY` | Fallback API key (used if no active DB key exists) |
 | `ENCRYPTION_KEY` | 64-char hex string — encrypts/decrypts stored API keys |
+
+---
+
+## Sidebar Preferences (`useSidebarPreferences` hook)
+
+`client/src/hooks/useSidebarPreferences.ts` — drag-to-reorder and pin-to-top for all three dashboards.
+
+### Features
+- **Drag-to-reorder**: HTML5 native `draggable` API; drop indicator via `before:` pseudo-element
+- **Pin to top**: star (★) icon on each item; pinned items render above a divider in a "Pinned" section
+- **Persistence**: stored in `localStorage` under `{role}-sidebar-prefs` (e.g. `admin-sidebar-prefs`)
+- **Merge-safe**: new pages added to the codebase are appended to the saved order; removed pages are ignored
+
+### Hook API
+```ts
+const { getOrderedLinks, isPinned, togglePin, handleDragStart, handleDrop } =
+  useSidebarPreferences('admin' | 'team' | 'user', DEFAULT_LINKS);
+
+getOrderedLinks(visibleLinks) // → { pinned: Link[], rest: Link[] }
+isPinned(path)                // → boolean
+togglePin(path)               // toggle pin state
+handleDragStart(path)         // record drag source
+handleDrop(targetPath)        // reorder in state + persist
+```
+
+### Usage in sidebars
+All three sidebar components follow the same pattern:
+- `Sidebar.tsx` (admin) — `useSidebarPreferences('admin', DEFAULT_LINKS)`
+- `TeamSidebar.tsx` (team) — `useSidebarPreferences('team', DEFAULT_LINKS)`
+- `UserSidebar.tsx` (user) — `useSidebarPreferences('user', DEFAULT_LINKS)`
+
+Each item renders a `<GripVertical>` drag handle (desktop expanded only) and a `<Star>` pin button that appears on hover.
 
 ---
 

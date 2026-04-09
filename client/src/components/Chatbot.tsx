@@ -196,6 +196,9 @@ function getOrCreateSessionId(): string {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+// ─── Typewriter speed (characters revealed per 15ms tick) ────────────────────
+const CHARS_PER_TICK = 4;
+
 export function Chatbot() {
   const navigate = useNavigate();
   const [isOpen,     setIsOpen]     = useState(false);
@@ -209,6 +212,10 @@ export function Chatbot() {
   const scrollRef    = useRef<HTMLDivElement>(null);
   const abortRef     = useRef<AbortController | null>(null);
   const sessionId    = useRef(getOrCreateSessionId());
+
+  // Typewriter: keyed by message id → { buffer, done, displayed }
+  const twBufferRef  = useRef<Map<string, { buffer: string; done: boolean; displayed: number }>>(new Map());
+  const twTimerRef   = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
 
   // ── Load public config once ───────────────────────────────────────────────
   useEffect(() => {
@@ -272,6 +279,39 @@ export function Chatbot() {
 
     const history = buildHistory();
 
+    // Initialise typewriter buffer for this message
+    twBufferRef.current.set(assistantMsgId, { buffer: '', done: false, displayed: 0 });
+
+    // Interval that drains the buffer character-by-character
+    const twInterval = setInterval(() => {
+      const entry = twBufferRef.current.get(assistantMsgId);
+      if (!entry) { clearInterval(twInterval); return; }
+
+      const { buffer, done, displayed } = entry;
+
+      if (displayed < buffer.length) {
+        // Advance the display pointer
+        const next = Math.min(displayed + CHARS_PER_TICK, buffer.length);
+        entry.displayed = next;
+        const slice = buffer.slice(0, next);
+        setMessages(prev =>
+          prev.map(m => m.id === assistantMsgId ? { ...m, content: slice } : m)
+        );
+      } else if (done) {
+        // Buffer fully shown and SSE complete → finish streaming
+        clearInterval(twInterval);
+        twTimerRef.current.delete(assistantMsgId);
+        twBufferRef.current.delete(assistantMsgId);
+        setMessages(prev =>
+          prev.map(m => m.id === assistantMsgId ? { ...m, isStreaming: false } : m)
+        );
+        setIsLoading(false);
+      }
+      // else: buffer caught up but SSE not done yet — wait for more chunks
+    }, 15);
+
+    twTimerRef.current.set(assistantMsgId, twInterval);
+
     await streamChat({
       message:   text,
       sessionId: sessionId.current,
@@ -279,27 +319,22 @@ export function Chatbot() {
       signal:    abortRef.current.signal,
 
       onDelta: (chunk) => {
-        setMessages(prev =>
-          prev.map(m =>
-            m.id === assistantMsgId
-              ? { ...m, content: m.content + chunk }
-              : m
-          )
-        );
+        // Accumulate into buffer only — typewriter interval handles display
+        const entry = twBufferRef.current.get(assistantMsgId);
+        if (entry) entry.buffer += chunk;
       },
 
       onDone: () => {
-        setMessages(prev =>
-          prev.map(m =>
-            m.id === assistantMsgId
-              ? { ...m, isStreaming: false }
-              : m
-          )
-        );
-        setIsLoading(false);
+        // Mark buffer done — typewriter interval will finish when it catches up
+        const entry = twBufferRef.current.get(assistantMsgId);
+        if (entry) entry.done = true;
       },
 
       onError: (errMsg) => {
+        // Errors bypass the typewriter — show immediately
+        const timer = twTimerRef.current.get(assistantMsgId);
+        if (timer) { clearInterval(timer); twTimerRef.current.delete(assistantMsgId); }
+        twBufferRef.current.delete(assistantMsgId);
         setMessages(prev =>
           prev.map(m =>
             m.id === assistantMsgId
@@ -310,16 +345,34 @@ export function Chatbot() {
         setIsLoading(false);
       },
     }).catch(() => {
-      // AbortError — user navigated away or sent a new message
+      // AbortError — clean up typewriter
+      const timer = twTimerRef.current.get(assistantMsgId);
+      if (timer) { clearInterval(timer); twTimerRef.current.delete(assistantMsgId); }
+      twBufferRef.current.delete(assistantMsgId);
       setIsLoading(false);
     });
   };
 
+  // ── Cleanup typewriter timers on unmount ──────────────────────────────────
+  useEffect(() => {
+    return () => {
+      twTimerRef.current.forEach(timer => clearInterval(timer));
+      twTimerRef.current.clear();
+      twBufferRef.current.clear();
+    };
+  }, []);
+
   // ── Clear conversation ────────────────────────────────────────────────────
   const handleClear = () => {
+    // Stop any running typewriter intervals
+    twTimerRef.current.forEach(timer => clearInterval(timer));
+    twTimerRef.current.clear();
+    twBufferRef.current.clear();
+    abortRef.current?.abort();
     const welcome = config?.welcomeMessage || "Hi! I'm Nova. How can I help?";
     sessionId.current = crypto.randomUUID();
     localStorage.setItem('nova_session_id', sessionId.current);
+    setIsLoading(false);
     setMessages([{
       id: 'welcome',
       role: 'assistant',

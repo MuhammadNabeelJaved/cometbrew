@@ -27,7 +27,9 @@ const chatbotConfigSchema = new mongoose.Schema({
     enum:    ['anthropic', 'claude', 'openai', 'gemini', 'custom'],
     default: 'anthropic',
   },
-  activeModel: { type: String, default: 'claude-opus-4-6', trim: true },
+  activeModel:  { type: String, default: 'claude-sonnet-4-6',         trim: true },
+  /** Cheaper model used automatically for short/simple queries (smart routing). */
+  simpleModel:  { type: String, default: 'claude-haiku-4-5-20251001', trim: true },
 
   /** Stored API key entries (one may be marked active). */
   apiKeys: { type: [apiKeySchema], default: [] },

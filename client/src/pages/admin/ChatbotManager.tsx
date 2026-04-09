@@ -30,7 +30,7 @@ import {
 } from '../../api/chatbot.api';
 import type {
   ChatbotStats, ChatbotSession, ChatbotConfigFull,
-  KnowledgeEntry, ApiKeyMeta, ChatbotTone, SyncResult,
+  KnowledgeEntry, ApiKeyMeta, ChatbotTone, SyncResult, AnthropicModel,
 } from '../../api/chatbot.api';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -653,6 +653,87 @@ const BUSINESS_CONTEXT_TEMPLATE = `## Agency Overview
 ## Location
 [City, Country] — serving clients globally with remote project delivery.`;
 
+// ─── Model catalog (mirrors server ANTHROPIC_MODELS — used as fallback) ────────
+const DEFAULT_MODELS: AnthropicModel[] = [
+  {
+    id:    'claude-haiku-4-5-20251001',
+    name:  'Claude Haiku 4.5',
+    tier:  'fast',
+    badge: '⚡ Fastest · Most Affordable',
+    desc:  'Best for simple queries, greetings, and FAQ-style answers. Very low cost.',
+  },
+  {
+    id:    'claude-sonnet-4-6',
+    name:  'Claude Sonnet 4.6',
+    tier:  'balanced',
+    badge: '⚖️ Balanced · Recommended',
+    desc:  'Best balance of quality and cost. Ideal for most customer interactions.',
+  },
+  {
+    id:    'claude-opus-4-6',
+    name:  'Claude Opus 4.6',
+    tier:  'advanced',
+    badge: '🧠 Most Capable · Highest Cost',
+    desc:  'Maximum reasoning depth. Use for complex, nuanced conversations.',
+  },
+];
+
+const TIER_COLORS: Record<string, string> = {
+  fast:     'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+  balanced: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+  advanced: 'bg-violet-500/10 text-violet-400 border-violet-500/20',
+};
+
+function ModelSelector({
+  label, sublabel, value, models, onChange,
+}: {
+  label: string;
+  sublabel: string;
+  value: string;
+  models: AnthropicModel[];
+  onChange: (id: string) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <div>
+        <Label>{label}</Label>
+        <p className="text-xs text-muted-foreground mt-0.5">{sublabel}</p>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        {models.map(m => {
+          const active = value === m.id;
+          return (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => onChange(m.id)}
+              className={`relative flex flex-col gap-1 p-3 rounded-xl border text-left transition-all ${
+                active
+                  ? 'border-primary bg-primary/10 ring-1 ring-primary/30'
+                  : 'border-border/50 bg-muted/20 hover:border-border hover:bg-muted/40'
+              }`}
+            >
+              {active && (
+                <Check className="absolute top-2.5 right-2.5 h-3.5 w-3.5 text-primary" />
+              )}
+              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border self-start ${
+                TIER_COLORS[m.tier] ?? 'bg-muted text-muted-foreground'
+              }`}>
+                {m.badge}
+              </span>
+              <span className={`text-sm font-semibold mt-0.5 ${active ? 'text-primary' : 'text-foreground'}`}>
+                {m.name}
+              </span>
+              <span className="text-[11px] text-muted-foreground leading-snug">{m.desc}</span>
+              <code className="text-[10px] text-muted-foreground/60 font-mono mt-0.5">{m.id}</code>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── Config Tab ────────────────────────────────────────────────────────────────
 function ConfigTab() {
   const [cfg,     setCfg]     = useState<ChatbotConfigFull | null>(null);
@@ -680,6 +761,7 @@ function ConfigTab() {
         systemPrompt:        c.systemPrompt,
         businessContext:     c.businessContext,
         activeModel:         c.activeModel,
+        simpleModel:         c.simpleModel,
         maxTokens:           c.maxTokens,
         temperature:         c.temperature,
         maxMessagesPerHour:  c.maxMessagesPerHour,
@@ -778,16 +860,26 @@ function ConfigTab() {
             </div>
             <Toggle checked={!!local.isEnabled} onChange={() => setLocal(l => ({ ...l, isEnabled: !l.isEnabled }))} />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label>Bot Name</Label>
-              <Input value={local.botName ?? ''} onChange={e => setLocal(l => ({ ...l, botName: e.target.value }))} placeholder="Nova" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Active Model</Label>
-              <Input value={local.activeModel ?? ''} onChange={e => setLocal(l => ({ ...l, activeModel: e.target.value }))} placeholder="claude-opus-4-6" />
-            </div>
+          <div className="space-y-1.5">
+            <Label>Bot Name</Label>
+            <Input value={local.botName ?? ''} onChange={e => setLocal(l => ({ ...l, botName: e.target.value }))} placeholder="Nova" />
           </div>
+
+          {/* ── Model Selector ─────────────────────────────────────────────── */}
+          <ModelSelector
+            label="Primary Model"
+            sublabel="Used for complex, multi-turn conversations"
+            value={local.activeModel ?? 'claude-sonnet-4-6'}
+            models={cfg?.availableModels ?? DEFAULT_MODELS}
+            onChange={id => setLocal(l => ({ ...l, activeModel: id }))}
+          />
+          <ModelSelector
+            label="Simple Model (Smart Routing)"
+            sublabel="Auto-selected for short queries to reduce cost"
+            value={local.simpleModel ?? 'claude-haiku-4-5-20251001'}
+            models={cfg?.availableModels ?? DEFAULT_MODELS}
+            onChange={id => setLocal(l => ({ ...l, simpleModel: id }))}
+          />
           <div className="space-y-1.5">
             <Label>Welcome Message</Label>
             <Textarea value={local.welcomeMessage ?? ''} onChange={e => setLocal(l => ({ ...l, welcomeMessage: e.target.value }))} rows={3} />

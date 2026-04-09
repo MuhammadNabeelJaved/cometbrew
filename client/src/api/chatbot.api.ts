@@ -23,9 +23,19 @@ export interface PublicChatbotConfig {
 
 export type ChatbotTone = 'professional' | 'friendly' | 'formal' | 'casual' | 'expert' | 'empathetic';
 
+export interface AnthropicModel {
+  id: string;
+  name: string;
+  tier: 'fast' | 'balanced' | 'advanced';
+  badge: string;
+  desc: string;
+}
+
 export interface ChatbotConfigFull {
   activeProvider: string;
   activeModel: string;
+  simpleModel: string;
+  availableModels: AnthropicModel[];
   systemPrompt: string;
   businessContext: string;
   botName: string;

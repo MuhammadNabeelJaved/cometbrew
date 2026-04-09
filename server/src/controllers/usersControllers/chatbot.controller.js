@@ -35,6 +35,7 @@ import ChatbotKnowledge from '../../models/usersModels/ChatbotKnowledge.model.js
 import ChatbotSession   from '../../models/usersModels/ChatbotSession.model.js';
 import { uploadFile }   from '../../middlewares/Cloudinary.js';
 // Models used for database auto-sync
+import PageStatus    from '../../models/usersModels/PageStatus.model.js';
 import Services      from '../../models/usersModels/Services.model.js';
 import AdminProject  from '../../models/usersModels/AdminProject.model.js';
 import CMS           from '../../models/usersModels/CMS.model.js';
@@ -75,6 +76,142 @@ const TONE_INSTRUCTIONS = {
     'situation before answering. Show that you care about their needs and provide ' +
     'supportive, considerate responses. Never be dismissive.',
 };
+
+// ─── Anthropic model catalog ──────────────────────────────────────────────────
+// Exported so the frontend config endpoint can serve this list to the admin UI.
+export const ANTHROPIC_MODELS = [
+  {
+    id:    'claude-haiku-4-5-20251001',
+    name:  'Claude Haiku 4.5',
+    tier:  'fast',
+    badge: '⚡ Fastest · Most Affordable',
+    desc:  'Ideal for simple queries, greetings, and FAQ-style answers. Very low cost.',
+  },
+  {
+    id:    'claude-sonnet-4-6',
+    name:  'Claude Sonnet 4.6',
+    tier:  'balanced',
+    badge: '⚖️ Balanced · Recommended',
+    desc:  'Best balance of quality and cost. Suitable for most customer queries.',
+  },
+  {
+    id:    'claude-opus-4-6',
+    name:  'Claude Opus 4.6',
+    tier:  'advanced',
+    badge: '🧠 Most Capable · Highest Cost',
+    desc:  'Maximum reasoning depth. Use only for complex, nuanced conversations.',
+  },
+];
+
+// ─── In-memory response cache ─────────────────────────────────────────────────
+// Avoids repeat API calls for identical or near-identical queries.
+// TTL: 1 hour · Max size: 500 entries (LRU-style eviction)
+const _cache        = new Map();
+const CACHE_TTL_MS  = 60 * 60 * 1000;
+const CACHE_MAX     = 500;
+
+function _cacheKey(msg) {
+  return msg.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+}
+
+function _cacheGet(key) {
+  const entry = _cache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.ts > CACHE_TTL_MS) { _cache.delete(key); return null; }
+  return entry.text;
+}
+
+function _cacheSet(key, text) {
+  if (_cache.size >= CACHE_MAX) _cache.delete(_cache.keys().next().value); // evict oldest
+  _cache.set(key, { text, ts: Date.now() });
+}
+
+// ─── In-memory rate limiter (per anonymised IP, 1-minute sliding window) ─────
+const _rateMap = new Map();
+
+function _isRateLimited(ip, maxPerMin = 15) {
+  const now   = Date.now();
+  const entry = _rateMap.get(ip) ?? { count: 0, resetAt: now + 60_000 };
+  if (now > entry.resetAt) { entry.count = 0; entry.resetAt = now + 60_000; }
+  entry.count++;
+  _rateMap.set(ip, entry);
+  return entry.count > maxPerMin;
+}
+
+// ─── Rule-based layer ─────────────────────────────────────────────────────────
+// Layer 1a — Greeting detection (exact short phrases only)
+const _GREETING_RE = /^(hi+|hello+|hey+|salam|salaam|assalam\s*o?\s*alaikum|good\s+(morning|afternoon|evening|day)|howdy|greetings|sup|hiya|yo|namaste|bonjour|hola|ciao)\s*[!.,]?$/i;
+
+const _GREETING_REPLIES = [
+  "Hello! 👋 I'm Nova, your AI assistant. How can I help you today? Feel free to ask about our services, projects, or team!",
+  "Hi there! 😊 I'm Nova. What can I assist you with today?",
+  "Hey! Welcome! I'm Nova, ready to help. Ask me anything about our services or projects!",
+];
+
+// Layer 1b — Off-topic detection (clearly non-business topics)
+const _OFF_TOPIC_PATTERNS = [
+  /\b(weather forecast|today's weather|sports (score|result)|stock price|crypto price|recipe for|how to cook|movie review|song lyrics|write me a (poem|story|essay)|celebrity gossip|personal relationship advice|dating advice|homework (help|assignment))\b/i,
+  /^(what is \d+[\s+\-*/]\d+|calculate\b|solve for\b|what is the capital of\b|who won the\b|when was .+ born)\b/i,
+];
+
+const _OFF_TOPIC_REPLY = "I'm sorry, I can only assist with questions related to our business — services, projects, pricing, team, or how to get started. Is there something specific I can help you with?";
+
+function _isGreeting(msg)  { return _GREETING_RE.test(msg.trim()); }
+function _isOffTopic(msg)  { return _OFF_TOPIC_PATTERNS.some(re => re.test(msg)); }
+
+// ─── FAQ keyword match ────────────────────────────────────────────────────────
+// Tokenises the query and scores each FAQ entry by % of query words that appear
+// in the FAQ title+content. Returns the best match if score ≥ 60%.
+async function _matchFaq(query) {
+  const words = query.toLowerCase().split(/\W+/).filter(w => w.length > 2);
+  if (words.length === 0) return null;
+
+  const faqs = await ChatbotKnowledge.find({ type: 'faq', isActive: true })
+    .select('title content')
+    .limit(200)
+    .lean();
+
+  if (!faqs.length) return null;
+
+  let best = null, bestScore = 0;
+  for (const faq of faqs) {
+    const haystack = `${faq.title} ${faq.content}`.toLowerCase();
+    const hits  = words.filter(w => haystack.includes(w)).length;
+    const score = hits / words.length;
+    if (score > bestScore) { bestScore = score; best = faq; }
+  }
+
+  return bestScore >= 0.6 ? best : null;
+}
+
+// ─── Smart model routing ──────────────────────────────────────────────────────
+// Short queries with shallow history → cheap fast model (Haiku)
+// Long / context-heavy queries → the model configured by admin (Sonnet/Opus)
+function _selectModel(message, history, cfg) {
+  const isSimple = message.length < 120 && history.length <= 4;
+  return isSimple
+    ? (cfg.simpleModel  || 'claude-haiku-4-5-20251001')
+    : (cfg.activeModel  || 'claude-sonnet-4-6');
+}
+
+// ─── Session persist helper (non-blocking, called with .catch()) ──────────────
+async function _persistSession(sessionId, req, userMsg, botMsg) {
+  const userAgent = (req.headers['user-agent'] || '').substring(0, 300);
+  const rawIp     = req.ip || '';
+  const ip        = rawIp.replace(/\.\d+$/, '.0').replace(/:[^:]+$/, ':0');
+
+  let session = await ChatbotSession.findOne({ sessionId });
+  if (!session) {
+    session = new ChatbotSession({
+      sessionId,
+      userId:   req.user?._id || null,
+      metadata: { userAgent, ip },
+    });
+  }
+  session.messages.push({ role: 'user',      content: userMsg });
+  session.messages.push({ role: 'assistant', content: botMsg  });
+  await session.save();
+}
 
 // ─── Encryption helpers ───────────────────────────────────────────────────────
 const ALGO        = 'aes-256-gcm';
@@ -173,6 +310,63 @@ function buildKnowledgeContext(entries) {
   return `\n\n---\n## Business Knowledge Base\nUse the following information to answer user questions:\n\n${sections}\n---`;
 }
 
+// ─── Active public page links for navigation CTAs ─────────────────────────────
+
+/**
+ * Human-friendly CTA button labels for well-known paths.
+ * Used when building the navigation section of the system prompt.
+ */
+const _PAGE_CTA_LABELS = {
+  '/':          'Go to Homepage',
+  '/services':  'View Our Services',
+  '/portfolio': 'View Our Portfolio',
+  '/contact':   'Get in Touch',
+  '/our-team':  'Meet Our Team',
+  '/careers':   'See Open Positions',
+  '/privacy':   'Read Privacy Policy',
+  '/terms':     'Read Terms of Service',
+  '/cookies':   'Cookie Preferences',
+  '/login':     'Login to Dashboard',
+  '/signup':    'Create an Account',
+};
+
+/**
+ * Pages that always exist (not tracked in PageStatus).
+ * These are static/auth pages that the admin cannot disable via Page Manager.
+ */
+const _ALWAYS_ON_PAGES = [
+  { path: '/login',   label: 'Login' },
+  { path: '/signup',  label: 'Sign Up' },
+  { path: '/privacy', label: 'Privacy Policy' },
+  { path: '/terms',   label: 'Terms of Service' },
+  { path: '/cookies', label: 'Cookie Settings' },
+];
+
+/**
+ * Fetches active, visible public pages from the DB and merges with always-on
+ * pages to build the full list of paths the chatbot may link to.
+ * Pages with status !== 'active' or isHidden === true are excluded.
+ */
+async function getActivePublicNavLinks() {
+  const dbPages = await PageStatus.find({
+    category: 'public',
+    status:   'active',
+    isHidden: { $ne: true },
+  }).select('path label').lean();
+
+  // Combine DB pages + always-on pages (deduplicate by path)
+  const seen = new Set(dbPages.map(p => p.path));
+  const combined = [
+    ...dbPages,
+    ..._ALWAYS_ON_PAGES.filter(p => !seen.has(p.path)),
+  ];
+
+  return combined.map(p => ({
+    path:     p.path,
+    ctaLabel: _PAGE_CTA_LABELS[p.path] || p.label,
+  }));
+}
+
 // ─── Public: GET /config/public ──────────────────────────────────────────────
 
 export const getPublicConfig = asyncHandler(async (req, res) => {
@@ -190,12 +384,11 @@ export const getPublicConfig = asyncHandler(async (req, res) => {
 // ─── Public: POST /chat ───────────────────────────────────────────────────────
 
 /**
- * Streams a Claude response via Server-Sent Events.
+ * Cost-optimised chat endpoint — layered decision flow:
  *
- * Request body:
- *   { message: string, sessionId: string, history?: {role,content}[] }
+ *   Rate limit → Greeting → Off-topic → FAQ match → Cache → AI (last resort)
  *
- * SSE events emitted:
+ * SSE events emitted on all code paths:
  *   data: {"type":"delta","text":"..."}\n\n
  *   data: {"type":"done"}\n\n
  *   data: {"type":"error","message":"..."}\n\n
@@ -210,78 +403,141 @@ export const chat = asyncHandler(async (req, res) => {
     throw new AppError('sessionId is required', 400);
   }
 
+  // ── Rate limiting ─────────────────────────────────────────────────────────
+  const rawIp = req.ip || '0.0.0.0';
+  const ipKey = rawIp.replace(/\.\d+$/, '.0').replace(/:[^:]+$/, ':0');
+  if (_isRateLimited(ipKey)) {
+    throw new AppError('Too many messages. Please wait a moment before trying again.', 429);
+  }
+
   const cfg = await getOrCreateConfig();
+  if (!cfg.isEnabled) throw new AppError('Chatbot is currently disabled', 503);
 
-  if (!cfg.isEnabled) {
-    throw new AppError('Chatbot is currently disabled', 503);
-  }
+  const userMsg  = message.trim();
+  const cacheKey = _cacheKey(userMsg);
 
-  // Resolve the active API key
-  const apiKey = resolveApiKey(cfg);
-  if (!apiKey) {
-    throw new AppError('No active API key configured for the chatbot', 503);
-  }
-
-  // Retrieve relevant knowledge
-  const knowledge = await getRelevantKnowledge(message);
-  const knowledgeContext = buildKnowledgeContext(knowledge);
-
-  // Build system prompt — base + tone + business context + knowledge + page links
-  const toneInstruction = TONE_INSTRUCTIONS[cfg.tone || 'professional'];
-  const systemPrompt =
-    cfg.systemPrompt +
-    `\n\n## Tone & Communication Style\n${toneInstruction}` +
-    (cfg.businessContext ? `\n\n## About the Business\n${cfg.businessContext}` : '') +
-    `\n\n## Navigation Links — Page References
-When your answer mentions or is directly relevant to any of the following website pages or topics, append one or more CTA (call-to-action) markers using EXACTLY this syntax on its own line at the end of the relevant paragraph:
-
-[CTA:/path|Button Label]
-
-Available pages (use only these exact paths):
-- Home page: [CTA:/|Go to Homepage]
-- Services overview: [CTA:/services|View Our Services]
-- Individual service detail (use the service slug): [CTA:/services/web-development|Web Development]
-- Portfolio / projects: [CTA:/portfolio|View Our Portfolio]
-- Careers / jobs: [CTA:/careers|See Open Positions]
-- Contact us: [CTA:/contact|Get in Touch]
-- Our team: [CTA:/our-team|Meet Our Team]
-- Privacy Policy: [CTA:/privacy|Read Privacy Policy]
-- Terms of Service: [CTA:/terms|Read Terms of Service]
-- Cookie settings: [CTA:/cookies|Cookie Preferences]
-- Login: [CTA:/login|Login to Dashboard]
-- Sign up: [CTA:/signup|Create an Account]
-
-Rules:
-1. Only add CTA markers when genuinely relevant — do NOT add them to every message.
-2. Place the CTA marker on its own line after the sentence that references the page.
-3. You may include up to 3 CTA markers per response.
-4. Do not invent paths — use only the paths listed above.
-5. The button label should be short (2–4 words) and action-oriented.` +
-    knowledgeContext;
-
-  // Trim history to the last 10 turns to keep context manageable
-  const trimmedHistory = history.slice(-10).map(m => ({
-    role:    m.role === 'assistant' ? 'assistant' : 'user',
-    content: String(m.content || ''),
-  }));
-
-  // Build Anthropic messages array
-  const messages = [
-    ...trimmedHistory,
-    { role: 'user', content: message.trim() },
-  ];
-
-  // ── SSE setup ────────────────────────────────────────────────────────────────
-  res.setHeader('Content-Type',  'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection',    'keep-alive');
+  // ── SSE setup (all code paths share this) ─────────────────────────────────
+  res.setHeader('Content-Type',      'text/event-stream');
+  res.setHeader('Cache-Control',     'no-cache');
+  res.setHeader('Connection',        'keep-alive');
   res.setHeader('X-Accel-Buffering', 'no');
   res.flushHeaders();
 
   const sendEvent = (data) => {
     res.write(`data: ${JSON.stringify(data)}\n\n`);
-    if (res.flush) res.flush(); // compression middleware
+    if (res.flush) res.flush();
   };
+
+  // Sends a complete instant reply as SSE (no AI call needed)
+  const sendInstant = (text) => {
+    sendEvent({ type: 'delta', text });
+    sendEvent({ type: 'done' });
+    res.end();
+  };
+
+  // ── LAYER 1: Greeting detection (zero cost) ───────────────────────────────
+  if (_isGreeting(userMsg)) {
+    const reply = _GREETING_REPLIES[Math.floor(Math.random() * _GREETING_REPLIES.length)];
+    sendInstant(reply);
+    return;
+  }
+
+  // ── LAYER 2: Off-topic filter (zero cost) ────────────────────────────────
+  if (_isOffTopic(userMsg)) {
+    sendInstant(_OFF_TOPIC_REPLY);
+    return;
+  }
+
+  // ── LAYER 3: FAQ keyword match (DB read, no API call) ────────────────────
+  const faqHit = await _matchFaq(userMsg);
+  if (faqHit) {
+    sendInstant(faqHit.content);
+    _persistSession(sessionId, req, userMsg, faqHit.content)
+      .catch(e => console.error('[Chatbot] Session save error:', e.message));
+    return;
+  }
+
+  // ── LAYER 4: In-memory response cache (zero cost) ─────────────────────────
+  const cached = _cacheGet(cacheKey);
+  if (cached) {
+    sendInstant(cached);
+    _persistSession(sessionId, req, userMsg, cached)
+      .catch(e => console.error('[Chatbot] Session save error:', e.message));
+    return;
+  }
+
+  // ── LAYER 5: AI API call — last resort only ───────────────────────────────
+  const apiKey = resolveApiKey(cfg);
+  if (!apiKey) throw new AppError('No active API key configured for the chatbot', 503);
+
+  // Retrieve knowledge, portfolio projects, and live page statuses in parallel
+  const [knowledge, publicProjects, activeNavLinks] = await Promise.all([
+    getRelevantKnowledge(userMsg),
+    AdminProject.find({ isPublic: true, isArchived: false })
+      .select('_id projectTitle category')
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .lean(),
+    getActivePublicNavLinks(),
+  ]);
+
+  const knowledgeContext = buildKnowledgeContext(knowledge);
+
+  // Build navigation CTA list — only pages that are currently active on the site
+  const navLines = activeNavLinks.length
+    ? activeNavLinks
+        .map(p => `- [CTA:${p.path}|${p.ctaLabel}]`)
+        .join('\n')
+    : '- (No active public pages found)';
+
+  // Also check if portfolio page is active before including individual project links
+  const portfolioActive = activeNavLinks.some(p => p.path === '/portfolio');
+  const projectLines = portfolioActive && publicProjects.length
+    ? publicProjects
+        .map(p => `- ${p.projectTitle} (${p.category}): [CTA:/portfolio/${p._id}|View ${p.projectTitle}]`)
+        .join('\n')
+    : portfolioActive
+      ? '- (No public portfolio projects yet)'
+      : '- (Portfolio page is currently unavailable)';
+
+  const toneInstruction = TONE_INSTRUCTIONS[cfg.tone || 'professional'];
+
+  const systemPrompt =
+    cfg.systemPrompt +
+    // Response length control — reduces token usage
+    '\n\nIMPORTANT: Keep your answer concise (2–4 sentences) unless the user explicitly asks for more detail.' +
+    `\n\n## Tone & Communication Style\n${toneInstruction}` +
+    (cfg.businessContext ? `\n\n## About the Business\n${cfg.businessContext}` : '') +
+    `\n\n## Navigation Links — Page References
+When your answer mentions or is directly relevant to a page, append a CTA marker using EXACTLY this syntax on its own line:
+
+[CTA:/path|Button Label]
+
+IMPORTANT: Only use paths from the list below. These are the pages CURRENTLY ACTIVE on the website.
+Do NOT link to any path not listed here — those pages may be under maintenance or not yet available.
+
+Currently active pages:
+${navLines}
+
+## Portfolio Projects — Individual Links (only if portfolio is active above)
+${projectLines}
+
+Rules: max 3 CTAs per response · only when genuinely relevant · use ONLY the paths listed above · short action-oriented labels.` +
+    knowledgeContext;
+
+  // Smart model routing — simple queries use cheap Haiku, complex use configured model
+  const model = _selectModel(userMsg, history, cfg);
+
+  // Context optimisation — only last 5 turns (was 10) to reduce token count
+  const trimmedHistory = history.slice(-5).map(m => ({
+    role:    m.role === 'assistant' ? 'assistant' : 'user',
+    content: String(m.content || ''),
+  }));
+
+  const messages = [
+    ...trimmedHistory,
+    { role: 'user', content: userMsg },
+  ];
 
   let fullResponse = '';
 
@@ -289,17 +545,14 @@ Rules:
     const client = new Anthropic({ apiKey });
 
     const stream = await client.messages.stream({
-      model:      cfg.activeModel || 'claude-opus-4-6',
-      max_tokens: cfg.maxTokens   || 1024,
+      model,
+      max_tokens: cfg.maxTokens || 1024,
       system:     systemPrompt,
       messages,
     });
 
     for await (const event of stream) {
-      if (
-        event.type === 'content_block_delta' &&
-        event.delta?.type === 'text_delta'
-      ) {
+      if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
         const text = event.delta.text || '';
         fullResponse += text;
         sendEvent({ type: 'delta', text });
@@ -307,6 +560,11 @@ Rules:
     }
 
     sendEvent({ type: 'done' });
+
+    // Cache the response for future identical queries (skip very short or very long)
+    if (fullResponse.length >= 20 && fullResponse.length <= 3000) {
+      _cacheSet(cacheKey, fullResponse);
+    }
 
   } catch (err) {
     console.error('[Chatbot] Anthropic error:', err.message);
@@ -317,28 +575,8 @@ Rules:
 
   res.end();
 
-  // ── Persist session (non-blocking) ──────────────────────────────────────────
-  try {
-    const userAgent = (req.headers['user-agent'] || '').substring(0, 300);
-    const rawIp     = req.ip || '';
-    // Strip last octet for privacy: 192.168.1.X → 192.168.1.0
-    const ip        = rawIp.replace(/\.\d+$/, '.0').replace(/:[^:]+$/, ':0');
-
-    let session = await ChatbotSession.findOne({ sessionId });
-    if (!session) {
-      session = new ChatbotSession({
-        sessionId,
-        userId:   req.user?._id || null,
-        metadata: { userAgent, ip },
-      });
-    }
-
-    session.messages.push({ role: 'user',      content: message.trim() });
-    session.messages.push({ role: 'assistant', content: fullResponse });
-    await session.save();
-  } catch (err) {
-    console.error('[Chatbot] Session save error:', err.message);
-  }
+  _persistSession(sessionId, req, userMsg, fullResponse)
+    .catch(e => console.error('[Chatbot] Session save error:', e.message));
 });
 
 // ─── Admin: Stats ─────────────────────────────────────────────────────────────
@@ -469,6 +707,8 @@ export const getConfig = asyncHandler(async (req, res) => {
   successResponse(res, 'Config retrieved', {
     activeProvider:     cfg.activeProvider,
     activeModel:        cfg.activeModel,
+    simpleModel:        cfg.simpleModel,
+    availableModels:    ANTHROPIC_MODELS,
     systemPrompt:       cfg.systemPrompt,
     businessContext:    cfg.businessContext,
     botName:            cfg.botName,
@@ -487,7 +727,7 @@ export const updateConfig = asyncHandler(async (req, res) => {
   if (req.user.role !== 'admin') throw new AppError('Admin only', 403);
 
   const allowed = [
-    'activeProvider', 'activeModel', 'systemPrompt', 'businessContext',
+    'activeProvider', 'activeModel', 'simpleModel', 'systemPrompt', 'businessContext',
     'botName', 'welcomeMessage', 'isEnabled', 'tone',
     'maxTokens', 'temperature', 'maxMessagesPerHour', 'maxMessagesPerDay',
   ];
