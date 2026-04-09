@@ -37,7 +37,7 @@ interface Message {
 
 /**
  * Renders a subset of markdown commonly produced by Claude:
- * headings (##/###), bold (**), italic (*/_), inline code (`),
+ * headings (##/###), bold (**), italic (*/_), inline code (backtick),
  * bullet lists (- / *), numbered lists (1.), horizontal rules (---), line breaks.
  * Safe — no dangerouslySetInnerHTML; builds React elements directly.
  */
