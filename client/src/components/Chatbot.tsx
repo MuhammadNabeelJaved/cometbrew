@@ -20,7 +20,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from './ui/button';
 import { cn } from '../lib/utils';
-import { streamChat, getPublicConfig } from '../api/chatbot.api';
+import { streamChat, getPublicConfig, getChatHistory } from '../api/chatbot.api';
 import type { ChatMessage, PublicChatbotConfig } from '../api/chatbot.api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -201,35 +201,55 @@ const CHARS_PER_TICK = 4;
 
 export function Chatbot() {
   const navigate = useNavigate();
-  const [isOpen,     setIsOpen]     = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [input,      setInput]      = useState('');
-  const [isLoading,  setIsLoading]  = useState(false);
-  const [messages,   setMessages]   = useState<Message[]>([]);
-  const [config,     setConfig]     = useState<PublicChatbotConfig | null>(null);
-  const [configErr,  setConfigErr]  = useState(false);
+  const [isOpen,        setIsOpen]        = useState(false);
+  const [isExpanded,    setIsExpanded]    = useState(false);
+  const [input,         setInput]         = useState('');
+  const [isLoading,     setIsLoading]     = useState(false);
+  const [messages,      setMessages]      = useState<Message[]>([]);
+  const [config,        setConfig]        = useState<PublicChatbotConfig | null>(null);
+  const [configErr,     setConfigErr]     = useState(false);
+  const [hasHistory,    setHasHistory]    = useState(false);
 
-  const scrollRef    = useRef<HTMLDivElement>(null);
-  const abortRef     = useRef<AbortController | null>(null);
-  const sessionId    = useRef(getOrCreateSessionId());
+  const scrollRef       = useRef<HTMLDivElement>(null);
+  const abortRef        = useRef<AbortController | null>(null);
+  const sessionId       = useRef(getOrCreateSessionId());
+  const historyLoadedRef = useRef(false);
 
   // Typewriter: keyed by message id → { buffer, done, displayed }
   const twBufferRef  = useRef<Map<string, { buffer: string; done: boolean; displayed: number }>>(new Map());
   const twTimerRef   = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
 
-  // ── Load public config once ───────────────────────────────────────────────
+  // ── Load public config + history ──────────────────────────────────────────
   useEffect(() => {
     getPublicConfig()
-      .then(cfg => {
+      .then(async cfg => {
         setConfig(cfg);
-        if (cfg.isEnabled) {
-          setMessages([{
-            id:        'welcome',
-            role:      'assistant',
-            content:   cfg.welcomeMessage,
-            timestamp: new Date(),
-          }]);
+        if (!cfg.isEnabled) return;
+
+        // Load prior conversation from DB
+        if (!historyLoadedRef.current) {
+          historyLoadedRef.current = true;
+          const history = await getChatHistory(sessionId.current);
+          if (history.length > 0) {
+            const restored: Message[] = history.map((m, i) => ({
+              id:        `hist-${i}`,
+              role:      m.role,
+              content:   m.content,
+              timestamp: new Date(m.timestamp),
+            }));
+            setMessages(restored);
+            setHasHistory(true);
+            return; // skip welcome message — history exists
+          }
         }
+
+        // No history — show welcome
+        setMessages([{
+          id:        'welcome',
+          role:      'assistant',
+          content:   cfg.welcomeMessage,
+          timestamp: new Date(),
+        }]);
       })
       .catch(() => setConfigErr(true));
   }, []);
@@ -364,7 +384,6 @@ export function Chatbot() {
 
   // ── Clear conversation ────────────────────────────────────────────────────
   const handleClear = () => {
-    // Stop any running typewriter intervals
     twTimerRef.current.forEach(timer => clearInterval(timer));
     twTimerRef.current.clear();
     twBufferRef.current.clear();
@@ -372,7 +391,9 @@ export function Chatbot() {
     const welcome = config?.welcomeMessage || "Hi! I'm Nova. How can I help?";
     sessionId.current = crypto.randomUUID();
     localStorage.setItem('nova_session_id', sessionId.current);
+    historyLoadedRef.current = false;
     setIsLoading(false);
+    setHasHistory(false);
     setMessages([{
       id: 'welcome',
       role: 'assistant',
@@ -463,6 +484,13 @@ export function Chatbot() {
 
             {/* Messages */}
             <div className="flex-grow overflow-y-auto p-4 space-y-6 relative z-0" ref={scrollRef}>
+              {hasHistory && messages.length > 0 && (
+                <div className="flex items-center gap-2 py-1">
+                  <div className="flex-1 h-px bg-border/40" />
+                  <span className="text-[10px] text-muted-foreground/50 font-medium whitespace-nowrap px-2">Previous conversation</span>
+                  <div className="flex-1 h-px bg-border/40" />
+                </div>
+              )}
               {messages.map((msg) => (
                 <motion.div
                   key={msg.id}

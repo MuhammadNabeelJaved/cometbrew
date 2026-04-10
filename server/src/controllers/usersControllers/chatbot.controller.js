@@ -867,6 +867,24 @@ export const getStats = asyncHandler(async (req, res) => {
   });
 });
 
+// ─── Public: Get history by sessionId ─────────────────────────────────────────
+// The sessionId UUID acts as the bearer key — anyone with it can read the session.
+
+export const getHistoryBySessionId = asyncHandler(async (req, res) => {
+  const { sessionId } = req.params;
+  if (!sessionId) throw new AppError('sessionId required', 400);
+
+  const session = await ChatbotSession.findOne({ sessionId })
+    .select('messages')
+    .lean();
+
+  if (!session) return successResponse(res, 'No history', { messages: [] });
+
+  // Return last 100 messages (oldest first)
+  const messages = (session.messages || []).slice(-100);
+  successResponse(res, 'History retrieved', { messages });
+});
+
 // ─── Admin: Usage & Cost Stats ────────────────────────────────────────────────
 
 export const getUsageStats = asyncHandler(async (req, res) => {

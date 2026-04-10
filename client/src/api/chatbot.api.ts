@@ -245,6 +245,25 @@ export async function streamTeamChat(opts: {
   return _streamFromEndpoint(`${BASE}/team-chat`, opts);
 }
 
+// ─── History ──────────────────────────────────────────────────────────────────
+
+export interface HistoryMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+}
+
+export async function getChatHistory(sessionId: string): Promise<HistoryMessage[]> {
+  try {
+    const data = await apiFetch<{ data: { messages: HistoryMessage[] } }>(
+      `${BASE}/history/${encodeURIComponent(sessionId)}`
+    );
+    return data.data.messages || [];
+  } catch {
+    return [];
+  }
+}
+
 // ─── Admin — Stats & Sessions ─────────────────────────────────────────────────
 
 export async function getStats(): Promise<ChatbotStats> {

@@ -19,7 +19,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '../../components/ui/button';
 import { cn } from '../../lib/utils';
-import { streamUserChat, getConfig } from '../../api/chatbot.api';
+import { streamUserChat, getConfig, getChatHistory } from '../../api/chatbot.api';
 import type { ChatMessage } from '../../api/chatbot.api';
 import { toast } from 'sonner';
 
@@ -119,6 +119,7 @@ export default function UserAIChat() {
   const [sidebarWidth,   setSidebarWidth]   = useState(280);
   const [quickPrompts,   setQuickPrompts]   = useState<string[]>(DEFAULT_USER_PROMPTS);
   const [copied,         setCopied]         = useState<string | null>(null);
+  const [hasHistory,     setHasHistory]     = useState(false);
 
   const sessionIdRef   = useRef<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -133,10 +134,24 @@ export default function UserAIChat() {
   const twBufferRef = useRef<Map<string, { buffer: string; done: boolean; displayed: number }>>(new Map());
   const twTimerRef  = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
 
-  // Session
+  // Session + history
   useEffect(() => {
     const s = localStorage.getItem(SESSION_KEY);
-    sessionIdRef.current = s || (() => { const id = crypto.randomUUID(); localStorage.setItem(SESSION_KEY, id); return id; })();
+    const sessionId = s || crypto.randomUUID();
+    if (!s) localStorage.setItem(SESSION_KEY, sessionId);
+    sessionIdRef.current = sessionId;
+
+    getChatHistory(sessionId).then(history => {
+      if (history.length > 0) {
+        setMessages(history.map((m, i) => ({
+          id:        `hist-${i}`,
+          role:      m.role,
+          content:   m.content,
+          timestamp: new Date(m.timestamp),
+        })));
+        setHasHistory(true);
+      }
+    });
   }, []);
 
   // Load quick prompts from server config
@@ -246,7 +261,7 @@ export default function UserAIChat() {
     abortRef.current?.abort();
     twTimerRef.current.forEach(t => clearInterval(t));
     twTimerRef.current.clear(); twBufferRef.current.clear();
-    setMessages([]); setIsSending(false);
+    setMessages([]); setIsSending(false); setHasHistory(false);
     const id = crypto.randomUUID(); sessionIdRef.current = id; localStorage.setItem(SESSION_KEY, id);
   };
 
@@ -315,6 +330,14 @@ export default function UserAIChat() {
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+
+          {hasHistory && messages.length > 0 && (
+            <div className="flex items-center gap-2 py-1">
+              <div className="flex-1 h-px bg-border/40" />
+              <span className="text-[10px] text-muted-foreground/50 font-medium whitespace-nowrap px-2">Previous conversation</span>
+              <div className="flex-1 h-px bg-border/40" />
             </div>
           )}
 

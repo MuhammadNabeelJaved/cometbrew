@@ -20,7 +20,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from './ui/button';
 import { cn } from '../lib/utils';
-import { streamUserChat, streamTeamChat, getPublicConfig } from '../api/chatbot.api';
+import { streamUserChat, streamTeamChat, getPublicConfig, getChatHistory } from '../api/chatbot.api';
 import type { ChatMessage } from '../api/chatbot.api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -151,6 +151,7 @@ export function DashboardChatbot({ mode }: DashboardChatbotProps) {
   const [messages,   setMessages]   = useState<Message[]>([]);
   const [input,      setInput]      = useState('');
   const [isSending,  setIsSending]  = useState(false);
+  const [hasHistory, setHasHistory] = useState(false);
   // Resizable panel state
   const [panelW,     setPanelW]     = useState(360);
   const [panelH,     setPanelH]     = useState(480);
@@ -171,16 +172,24 @@ export function DashboardChatbot({ mode }: DashboardChatbotProps) {
   const twBufferRef = useRef<Map<string, { buffer: string; done: boolean; displayed: number }>>(new Map());
   const twTimerRef  = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
 
-  // Init session ID
+  // Init session ID + load history
   useEffect(() => {
     const stored = localStorage.getItem(cfg.storageKey);
-    if (stored) {
-      sessionIdRef.current = stored;
-    } else {
-      const id = crypto.randomUUID();
-      sessionIdRef.current = id;
-      localStorage.setItem(cfg.storageKey, id);
-    }
+    const sessionId = stored || crypto.randomUUID();
+    if (!stored) localStorage.setItem(cfg.storageKey, sessionId);
+    sessionIdRef.current = sessionId;
+
+    getChatHistory(sessionId).then(history => {
+      if (history.length > 0) {
+        setMessages(history.map((m, i) => ({
+          id:        `hist-${i}`,
+          role:      m.role,
+          content:   m.content,
+          timestamp: new Date(m.timestamp),
+        })));
+        setHasHistory(true);
+      }
+    });
   }, [cfg.storageKey]);
 
   // Check if enabled (piggyback on public config for now; full config needs admin route)
@@ -344,6 +353,7 @@ export function DashboardChatbot({ mode }: DashboardChatbotProps) {
     twBufferRef.current.clear();
     setMessages([]);
     setIsSending(false);
+    setHasHistory(false);
     const id = crypto.randomUUID();
     sessionIdRef.current = id;
     localStorage.setItem(cfg.storageKey, id);
@@ -447,6 +457,13 @@ export function DashboardChatbot({ mode }: DashboardChatbotProps) {
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3 scroll-smooth">
+              {hasHistory && messages.length > 0 && (
+                <div className="flex items-center gap-2 py-1">
+                  <div className="flex-1 h-px bg-border/40" />
+                  <span className="text-[10px] text-muted-foreground/50 font-medium whitespace-nowrap px-2">Previous conversation</span>
+                  <div className="flex-1 h-px bg-border/40" />
+                </div>
+              )}
               {messages.length === 0 && (
                 <div className="flex flex-col items-center justify-center h-full text-center gap-3 py-8">
                   <div className={cn('h-14 w-14 rounded-2xl bg-gradient-to-br flex items-center justify-center', cfg.gradient)}>

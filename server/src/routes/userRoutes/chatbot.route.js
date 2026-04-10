@@ -43,6 +43,7 @@ import {
   addApiKey,
   removeApiKey,
   activateApiKey,
+  getHistoryBySessionId,
   getKnowledge,
   createKnowledge,
   updateKnowledge,
@@ -81,8 +82,9 @@ const kbUpload = multer({
 });
 
 // ── Public routes ─────────────────────────────────────────────────────────────
-router.get('/config/public', getPublicConfig);
-router.post('/chat',         mutationLimiter, chat);
+router.get('/config/public',            getPublicConfig);
+router.post('/chat',                    mutationLimiter, chat);
+router.get('/history/:sessionId',       getHistoryBySessionId);
 
 // ── Authenticated dashboard chatbots ──────────────────────────────────────────
 router.post('/user-chat', userAuthenticated, mutationLimiter, userChat);
