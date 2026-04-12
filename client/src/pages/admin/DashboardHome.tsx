@@ -16,7 +16,7 @@ import {
   TicketCheck, UserCheck, AlertTriangle, CheckCheck, Loader2, ChevronRight,
   Zap, Database, Settings, Bell, FileText, PlusCircle, Star, Target,
   BarChart3, Activity, DollarSign, TrendingDown, Calendar, Tag,
-  Radio, Trash2, Briefcase,
+  Radio, Trash2,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
