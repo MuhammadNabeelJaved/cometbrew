@@ -2,9 +2,9 @@
  * Admin Dashboard Home
  * Rich overview: stats, pipeline, charts, recent activity, quick actions, hero editor.
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -16,6 +16,7 @@ import {
   TicketCheck, UserCheck, AlertTriangle, CheckCheck, Loader2, ChevronRight,
   Zap, Database, Settings, Bell, FileText, PlusCircle, Star, Target,
   BarChart3, Activity, DollarSign, TrendingDown, Calendar, Tag,
+  Radio, Trash2,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -30,6 +31,7 @@ import { supportTicketsApi } from '../../api/supportTickets.api';
 import { usersApi } from '../../api/users.api';
 import { tasksApi } from '../../api/tasks.api';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSocket } from '../../contexts/SocketContext';
 import { toast } from 'sonner';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -101,10 +103,111 @@ function timeAgo(date:string) {
 
 const defaultHero = { statusBadge:'', titleLine1:'', titleLine2:'', subtitle:'' };
 
+// ── Live Activity Feed ─────────────────────────────────────────────────────────
+type ActivityType = 'project' | 'ticket' | 'message' | 'status' | 'reaction' | 'pin' | 'notification' | 'task' | 'system';
+interface ActivityEvent {
+  id: string;
+  type: ActivityType;
+  title: string;
+  subtitle?: string;
+  timestamp: Date;
+}
+const ACTIVITY_CONFIG: Record<ActivityType, { color: string; bg: string; icon: React.FC<{ className?: string }> }> = {
+  project:      { color: 'text-blue-500',    bg: 'bg-blue-500/10',    icon: (p) => <FolderKanban {...p} /> },
+  ticket:       { color: 'text-amber-500',   bg: 'bg-amber-500/10',   icon: (p) => <TicketCheck {...p} /> },
+  message:      { color: 'text-primary',     bg: 'bg-primary/10',     icon: (p) => <MessageSquare {...p} /> },
+  status:       { color: 'text-green-500',   bg: 'bg-green-500/10',   icon: (p) => <UserCheck {...p} /> },
+  reaction:     { color: 'text-pink-500',    bg: 'bg-pink-500/10',    icon: (p) => <HeartHandshake {...p} /> },
+  pin:          { color: 'text-indigo-500',  bg: 'bg-indigo-500/10',  icon: (p) => <Star {...p} /> },
+  notification: { color: 'text-purple-500',  bg: 'bg-purple-500/10',  icon: (p) => <Bell {...p} /> },
+  task:         { color: 'text-cyan-500',    bg: 'bg-cyan-500/10',    icon: (p) => <CheckCheck {...p} /> },
+  system:       { color: 'text-muted-foreground', bg: 'bg-muted',     icon: (p) => <Activity {...p} /> },
+};
+function makeEvent(type: ActivityType, title: string, subtitle?: string): ActivityEvent {
+  return { id: `${Date.now()}-${Math.random()}`, type, title, subtitle, timestamp: new Date() };
+}
+
 // ── Component ──────────────────────────────────────────────────────────────────
 export default function DashboardHome() {
   const { user } = useAuth();
+  const { socket } = useSocket();
   const navigate = useNavigate();
+
+  // Live Activity Feed
+  const [activityFeed, setActivityFeed] = useState<ActivityEvent[]>([]);
+  const [feedPaused, setFeedPaused] = useState(false);
+  const feedRef = useRef<HTMLDivElement>(null);
+  const MAX_FEED = 50;
+
+  const pushEvent = useCallback((event: ActivityEvent) => {
+    if (feedPaused) return;
+    setActivityFeed(prev => [event, ...prev].slice(0, MAX_FEED));
+  }, [feedPaused]);
+
+  // Seed with startup event
+  useEffect(() => {
+    setActivityFeed([makeEvent('system', 'Activity feed started', 'Listening for real-time events…')]);
+  }, []);
+
+  // Socket listeners
+  useEffect(() => {
+    if (!socket) return;
+
+    const onNotification = (data: { type: string; message?: string; projectName?: string; userName?: string }) => {
+      const typeMap: Record<string, ActivityType> = {
+        project_submitted: 'project', project_accepted: 'project', project_rejected: 'project',
+        project_assigned: 'project', task_assigned: 'task', status_updated: 'project',
+        message: 'message', file_received: 'notification',
+      };
+      const aType = typeMap[data.type] ?? 'notification';
+      const title = data.message || `${data.type.replace(/_/g, ' ')} event`;
+      const subtitle = data.userName ? `by ${data.userName}` : data.projectName;
+      pushEvent(makeEvent(aType, title, subtitle));
+    };
+
+    const onDataUpdated = (payload: { section: string }) => {
+      const sectionLabels: Record<string, string> = {
+        projects: 'Project data updated', clients: 'Client data updated',
+        tasks: 'Task data updated', services: 'Services updated',
+        jobs: 'Job listings updated', announcements: 'Announcement updated',
+      };
+      pushEvent(makeEvent('system', sectionLabels[payload.section] ?? `${payload.section} updated`));
+    };
+
+    const onStatusChanged = (data: { userId?: string; userName?: string; status?: string }) => {
+      pushEvent(makeEvent('status', `${data.userName ?? 'Team member'} is now ${data.status ?? 'unknown'}`, 'Availability changed'));
+    };
+
+    const onMessagePinned = (data: { pinnedBy?: { name?: string }; isPinned?: boolean }) => {
+      const who = data.pinnedBy?.name ?? 'Someone';
+      pushEvent(makeEvent('pin', `${who} ${data.isPinned ? 'pinned' : 'unpinned'} a message`));
+    };
+
+    const onReactionUpdated = (data: { emoji?: string; updatedBy?: string }) => {
+      pushEvent(makeEvent('reaction', `Reaction ${data.emoji ?? '👍'} on a message`, data.updatedBy ? `by ${data.updatedBy}` : undefined));
+    };
+
+    socket.on('notification', onNotification);
+    socket.on('data:updated', onDataUpdated);
+    socket.on('user:status_changed', onStatusChanged);
+    socket.on('chat:message_pinned', onMessagePinned);
+    socket.on('chat:reaction_updated', onReactionUpdated);
+
+    return () => {
+      socket.off('notification', onNotification);
+      socket.off('data:updated', onDataUpdated);
+      socket.off('user:status_changed', onStatusChanged);
+      socket.off('chat:message_pinned', onMessagePinned);
+      socket.off('chat:reaction_updated', onReactionUpdated);
+    };
+  }, [socket, pushEvent]);
+
+  // Auto-scroll feed to top when new event arrives
+  useEffect(() => {
+    if (!feedPaused && feedRef.current) {
+      feedRef.current.scrollTop = 0;
+    }
+  }, [activityFeed, feedPaused]);
 
   // Hero
   const [heroForm, setHeroForm] = useState(defaultHero);
@@ -711,7 +814,103 @@ export default function DashboardHome() {
         </Card>
       </motion.div>
 
-      {/* ── Row 6: Quick Actions + Hero Editor ──────────────────────────────── */}
+      {/* ── Row 6: Live Activity Feed ────────────────────────────────────────── */}
+      <motion.div {...fadeUp} transition={{ delay:0.28 }}>
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="relative flex items-center justify-center h-8 w-8">
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-30 animate-ping" />
+                  <Radio className="h-4 w-4 text-green-500 relative" />
+                </div>
+                <div>
+                  <CardTitle className="text-base">Live Activity Feed</CardTitle>
+                  <CardDescription>Real-time events across your platform</CardDescription>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setFeedPaused(p => !p)}
+                  className={`text-[11px] font-medium px-2.5 py-1 rounded-full border transition-all ${
+                    feedPaused
+                      ? 'bg-amber-500/10 text-amber-600 border-amber-500/30 hover:bg-amber-500/20'
+                      : 'bg-green-500/10 text-green-600 border-green-500/30 hover:bg-green-500/20'
+                  }`}
+                >
+                  {feedPaused ? '⏸ Paused' : '▶ Live'}
+                </button>
+                <button
+                  onClick={() => setActivityFeed([makeEvent('system', 'Feed cleared')])}
+                  className="h-7 w-7 rounded-lg flex items-center justify-center border border-border hover:border-destructive/40 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
+                  title="Clear feed"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div
+              ref={feedRef}
+              className="h-48 overflow-y-auto pr-1 space-y-1 scrollbar-thin"
+              onMouseEnter={() => setFeedPaused(true)}
+              onMouseLeave={() => setFeedPaused(false)}
+            >
+              <AnimatePresence initial={false}>
+                {activityFeed.map(ev => {
+                  const cfg = ACTIVITY_CONFIG[ev.type];
+                  const Icon = cfg.icon;
+                  return (
+                    <motion.div
+                      key={ev.id}
+                      initial={{ opacity: 0, x: -8, height: 0 }}
+                      animate={{ opacity: 1, x: 0, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="flex items-start gap-2.5 py-1.5 px-2 rounded-lg hover:bg-muted/30 transition-colors group"
+                    >
+                      <div className={`mt-0.5 h-6 w-6 rounded-md flex items-center justify-center shrink-0 ${cfg.bg}`}>
+                        <Icon className={`h-3 w-3 ${cfg.color}`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-foreground leading-snug truncate">{ev.title}</p>
+                        {ev.subtitle && (
+                          <p className="text-[10px] text-muted-foreground truncate">{ev.subtitle}</p>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-muted-foreground shrink-0 pt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {ev.timestamp.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' })}
+                      </span>
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+              {activityFeed.length === 0 && (
+                <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                  <Activity className="h-6 w-6 mb-2 opacity-30" />
+                  <p className="text-xs">Waiting for events…</p>
+                </div>
+              )}
+            </div>
+            <div className="mt-2 pt-2 border-t border-border flex items-center justify-between">
+              <p className="text-[10px] text-muted-foreground">
+                {activityFeed.length} event{activityFeed.length !== 1 ? 's' : ''} · hover to pause
+              </p>
+              <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                {(['project','ticket','message','status','task'] as ActivityType[]).map(t => {
+                  const c = ACTIVITY_CONFIG[t];
+                  return (
+                    <span key={t} className={`text-[10px] px-1.5 py-0.5 rounded-md ${c.bg} ${c.color} capitalize`}>{t}</span>
+                  );
+                })}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* ── Row 7: Quick Actions + Hero Editor ──────────────────────────────── */}
       <motion.div {...fadeUp} transition={{ delay:0.3 }} className="grid gap-4 lg:grid-cols-7">
 
         {/* Quick Actions */}

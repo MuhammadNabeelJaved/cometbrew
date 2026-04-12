@@ -115,6 +115,13 @@ const userSchema = new mongoose.Schema(
             index: true,
         },
 
+        // Real-time availability for team members (visible to teammates & admin)
+        availabilityStatus: {
+            type: String,
+            enum: ["available", "busy", "meeting", "away", "wfh", "offline"],
+            default: "available",
+        },
+
         // Email must be verified before the user can log in
         isVerified: {
             type: Boolean,

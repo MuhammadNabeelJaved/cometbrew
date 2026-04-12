@@ -31,6 +31,11 @@ export interface Conversation {
     createdAt?: string;
 }
 
+export interface MessageReaction {
+    emoji: string;
+    users: string[]; // user IDs
+}
+
 export interface ChatMessage {
     _id: string;
     conversationId: string;
@@ -44,6 +49,9 @@ export interface ChatMessage {
     readBy: string[];
     createdAt: string;
     isDeleted?: boolean;
+    reactions?: MessageReaction[];
+    isPinned?: boolean;
+    pinnedBy?: { _id: string; name: string } | null;
     replyTo?: {
         _id: string;
         content: string;
@@ -111,4 +119,12 @@ export const chatApi = {
     /** Admin: permanently delete a conversation + all its messages */
     deleteConversation: (conversationId: string) =>
         apiClient.delete(`/chat/conversations/${conversationId}`),
+
+    /** Get all pinned messages in a conversation */
+    getPinnedMessages: (conversationId: string) =>
+        apiClient.get<{ data: ChatMessage[] }>(`/chat/conversations/${conversationId}/pinned`),
+
+    /** Search messages in a conversation by text */
+    searchMessages: (conversationId: string, q: string) =>
+        apiClient.get<{ data: ChatMessage[] }>(`/chat/conversations/${conversationId}/search`, { params: { q } }),
 };

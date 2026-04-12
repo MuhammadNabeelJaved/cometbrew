@@ -67,6 +67,18 @@ const messageSchema = new mongoose.Schema(
 
         // MIME type (stored for ChatFileMessage rendering)
         fileMime: { type: String, default: null },
+
+        // Emoji reactions — [{ emoji: "👍", users: [userId, ...] }]
+        reactions: [
+            {
+                emoji: { type: String, required: true },
+                users: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+            },
+        ],
+
+        // Pinned message flag
+        isPinned: { type: Boolean, default: false },
+        pinnedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     },
     {
         timestamps: true,

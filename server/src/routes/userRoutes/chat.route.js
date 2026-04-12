@@ -16,6 +16,8 @@ import {
     getTeamPeersForChat,
     clearChatMessages,
     deleteConversation,
+    getPinnedMessages,
+    searchMessages,
 } from "../../controllers/usersControllers/chat.controller.js";
 
 const router = express.Router();
@@ -33,6 +35,10 @@ router.post("/upload", upload.single("file"), uploadChatFile);
 
 // ── Team member routes ────────────────────────────────────────────────────────
 router.get("/team/peers", getTeamPeersForChat);
+
+// ── Pinned messages & search ──────────────────────────────────────────────────
+router.get("/conversations/:id/pinned", getPinnedMessages);
+router.get("/conversations/:id/search", searchMessages);
 
 // ── Admin-only routes ─────────────────────────────────────────────────────────
 router.get("/admin/conversations", adminGetAllConversations);

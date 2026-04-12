@@ -11,6 +11,7 @@ import {
     Send, Search, Phone, Video, MoreVertical, Paperclip, Loader2,
     MessageSquarePlus, CheckCheck, UserCircle, BellOff, Bell,
     Eraser, X, Mail, ShieldCheck, Calendar, ChevronRight, Users, Plus, Briefcase, ArrowDown,
+    Pin, PinOff,
 } from 'lucide-react';
 import { Card } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
@@ -23,9 +24,10 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
-import { chatApi, ChatMessage, Conversation, Participant } from '../../api/chat.api';
+import { chatApi, ChatMessage, Conversation, Participant, MessageReaction } from '../../api/chat.api';
 import { ChatFileMessage } from '../../components/ChatFileMessage';
 import { SwipeableMessage } from '../../components/SwipeableMessage';
+import { MessageReactions } from '../../components/MessageReactions';
 
 type ActiveTab = 'admin' | 'team';
 
@@ -73,6 +75,14 @@ export default function TeamChat() {
     const [mutedConvos, setMutedConvos] = useState<Set<string>>(new Set());
     const [confirmClear, setConfirmClear] = useState(false);
     const [isActioning, setIsActioning] = useState(false);
+
+    // ── Search state ──────────────────────────────────────────────────────────
+    const [msgSearchOpen, setMsgSearchOpen] = useState(false);
+    const [msgSearchQuery, setMsgSearchQuery] = useState('');
+    const [msgSearchResults, setMsgSearchResults] = useState<ChatMessage[]>([]);
+    const [msgSearchIdx, setMsgSearchIdx] = useState(0);
+    const [isMsgSearching, setIsMsgSearching] = useState(false);
+    const msgSearchInputRef = useRef<HTMLInputElement>(null);
 
     // ── Refs ─────────────────────────────────────────────────────────────────
     const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -256,14 +266,25 @@ export default function TeamChat() {
             );
         };
 
+        const onReactionUpdated = ({ messageId, reactions }: { messageId: string; reactions: MessageReaction[] }) => {
+            setMessages((prev) => prev.map((m) => m._id === messageId ? { ...m, reactions } : m));
+        };
+        const onMessagePinned = ({ messageId, isPinned, pinnedBy }: { messageId: string; isPinned: boolean; pinnedBy: any }) => {
+            setMessages((prev) => prev.map((m) => m._id === messageId ? { ...m, isPinned, pinnedBy } : m));
+        };
+
         socket.on('chat:new_message', onNewMessage);
         socket.on('chat:typing_indicator', onTyping);
         socket.on('chat:message_deleted', onDeleted);
+        socket.on('chat:reaction_updated', onReactionUpdated);
+        socket.on('chat:message_pinned', onMessagePinned);
 
         return () => {
             socket.off('chat:new_message', onNewMessage);
             socket.off('chat:typing_indicator', onTyping);
             socket.off('chat:message_deleted', onDeleted);
+            socket.off('chat:reaction_updated', onReactionUpdated);
+            socket.off('chat:message_pinned', onMessagePinned);
         };
     }, [socket]);
 
@@ -466,6 +487,37 @@ export default function TeamChat() {
 
     const formatTime = (dateStr: string) =>
         new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    // ── Message search handlers ───────────────────────────────────────────────
+    const scrollToSearchMsg = (msgId: string) => {
+        setHighlightedMsgId(msgId);
+        setTimeout(() => {
+            const el = document.querySelector(`[data-message-id="${msgId}"]`);
+            el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 50);
+        setTimeout(() => setHighlightedMsgId(null), 2500);
+    };
+
+    const handleMsgSearch = async (q: string) => {
+        setMsgSearchQuery(q);
+        if (!q.trim() || !selectedConvo) { setMsgSearchResults([]); return; }
+        setIsMsgSearching(true);
+        try {
+            const res = await chatApi.searchMessages(selectedConvo._id, q);
+            const results = res.data.data || [];
+            setMsgSearchResults(results);
+            setMsgSearchIdx(0);
+            if (results.length > 0) scrollToSearchMsg(results[0]._id);
+        } catch { /* silent */ }
+        finally { setIsMsgSearching(false); }
+    };
+
+    const navigateMsgSearch = (dir: 1 | -1) => {
+        if (!msgSearchResults.length) return;
+        const next = (msgSearchIdx + dir + msgSearchResults.length) % msgSearchResults.length;
+        setMsgSearchIdx(next);
+        scrollToSearchMsg(msgSearchResults[next]._id);
+    };
 
     const currentConversations = activeTab === 'admin' ? adminConversations : teamConversations;
     const filteredConvos = currentConversations.filter((c) => {
@@ -672,6 +724,9 @@ export default function TeamChat() {
                         </div>
                     </div>
                     <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" className={`text-muted-foreground hover:text-primary ${msgSearchOpen ? 'text-primary bg-primary/10' : ''}`} onClick={() => { setMsgSearchOpen(v => !v); setMsgSearchQuery(''); setMsgSearchResults([]); setTimeout(() => msgSearchInputRef.current?.focus(), 100); }}>
+                            <Search className="h-4 w-4" />
+                        </Button>
                         <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
                             <Phone className="h-4 w-4" />
                         </Button>
@@ -712,6 +767,23 @@ export default function TeamChat() {
                         </DropdownMenu>
                     </div>
                 </div>
+
+                {/* Search bar */}
+                <AnimatePresence>
+                    {msgSearchOpen && selectedConvo && (
+                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="border-b border-border/50 overflow-hidden">
+                            <div className="flex items-center gap-2 px-4 py-2 bg-muted/30">
+                                <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+                                <input ref={msgSearchInputRef} value={msgSearchQuery} onChange={(e) => handleMsgSearch(e.target.value)} placeholder="Search messages…" className="flex-1 text-sm bg-transparent outline-none placeholder:text-muted-foreground" />
+                                {msgSearchResults.length > 0 && <span className="text-xs text-muted-foreground shrink-0">{msgSearchIdx + 1}/{msgSearchResults.length}</span>}
+                                {msgSearchResults.length > 1 && (<><button onClick={() => navigateMsgSearch(-1)} className="text-xs px-1.5 py-0.5 rounded hover:bg-accent">↑</button><button onClick={() => navigateMsgSearch(1)} className="text-xs px-1.5 py-0.5 rounded hover:bg-accent">↓</button></>)}
+                                {isMsgSearching && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                                {msgSearchQuery && !isMsgSearching && msgSearchResults.length === 0 && <span className="text-xs text-muted-foreground">No results</span>}
+                                <button onClick={() => { setMsgSearchOpen(false); setMsgSearchQuery(''); setMsgSearchResults([]); }} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
                 {/* Messages */}
                 <div className="flex-1 relative overflow-hidden">
@@ -774,41 +846,55 @@ export default function TeamChat() {
                                     )}
 
                                     <div className={`max-w-[65%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                                        {msg.isPinned && (
+                                            <div className="flex items-center gap-1 text-[10px] text-amber-500 mb-0.5 px-1">
+                                                <Pin className="h-3 w-3" /><span>Pinned</span>
+                                            </div>
+                                        )}
                                         {isFirstInGroup && !isMe && (
                                             <span className="text-[11px] font-semibold text-muted-foreground mb-1 px-1">{senderName}</span>
                                         )}
-                                        <SwipeableMessage msg={msg} isMe={isMe} onReply={setReplyTo} onDelete={handleDelete}>
-                                            <div
-                                                className={`px-4 py-2.5 shadow-sm text-sm ${
-                                                    isMe
-                                                        ? `bg-primary text-primary-foreground ${isFirstInGroup ? 'rounded-2xl rounded-tr-sm' : 'rounded-2xl'}`
-                                                        : `bg-card border border-border/50 ${isFirstInGroup ? 'rounded-2xl rounded-tl-sm' : 'rounded-2xl'}`
-                                                }`}
-                                            >
-                                                {msg.replyTo && (
-                                                    <div className={`mb-2 px-2 py-1 rounded-lg border-l-2 text-xs opacity-70 ${isMe ? 'border-white/40 bg-white/10' : 'border-primary/40 bg-muted/50'}`}>
-                                                        <span className="font-semibold">{msg.replyTo.senderId?.name ?? 'Deleted User'}</span>
-                                                        <p className="truncate">{msg.replyTo.isDeleted ? 'Deleted message' : (msg.replyTo.messageType === 'file' ? `📎 ${msg.replyTo.fileName}` : msg.replyTo.content)}</p>
-                                                    </div>
-                                                )}
-                                                {msg.isDeleted ? (
-                                                    <p className="italic opacity-50">Message deleted</p>
-                                                ) : msg.messageType === 'file' ? (
-                                                    <ChatFileMessage
-                                                        fileUrl={msg.fileUrl ?? ''}
-                                                        fileName={msg.fileName ?? 'File'}
-                                                        fileMime={msg.fileMime}
-                                                        isMe={isMe}
-                                                    />
-                                                ) : (
-                                                    <p className="leading-relaxed">{msg.content}</p>
-                                                )}
-                                                <div className={`flex items-center justify-end gap-1 mt-1 text-[10px] ${isMe ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                                                    <span>{formatTime(msg.createdAt)}</span>
-                                                    {isMe && <CheckCheck className="h-3 w-3" />}
+                                        <div className="group relative">
+                                            {!msg.isDeleted && (
+                                                <div className={`absolute top-1 ${isMe ? 'right-full mr-1' : 'left-full ml-1'} hidden group-hover:flex items-center gap-0.5 z-10`}>
+                                                    <button onClick={() => socket?.emit('chat:pin_message', { messageId: msg._id })} title={msg.isPinned ? 'Unpin' : 'Pin'} className="p-1 rounded-lg bg-background border border-border/50 hover:bg-accent text-muted-foreground hover:text-foreground transition-colors shadow-sm">
+                                                        {msg.isPinned ? <PinOff className="h-3 w-3" /> : <Pin className="h-3 w-3" />}
+                                                    </button>
                                                 </div>
-                                            </div>
-                                        </SwipeableMessage>
+                                            )}
+                                            <SwipeableMessage msg={msg} isMe={isMe} onReply={setReplyTo} onDelete={handleDelete}>
+                                                <div
+                                                    className={`px-4 py-2.5 shadow-sm text-sm ${
+                                                        isMe
+                                                            ? `bg-primary text-primary-foreground ${isFirstInGroup ? 'rounded-2xl rounded-tr-sm' : 'rounded-2xl'}`
+                                                            : `bg-card border border-border/50 ${isFirstInGroup ? 'rounded-2xl rounded-tl-sm' : 'rounded-2xl'}`
+                                                    }`}
+                                                >
+                                                    {msg.replyTo && (
+                                                        <div className={`mb-2 px-2 py-1 rounded-lg border-l-2 text-xs opacity-70 ${isMe ? 'border-white/40 bg-white/10' : 'border-primary/40 bg-muted/50'}`}>
+                                                            <span className="font-semibold">{msg.replyTo.senderId?.name ?? 'Deleted User'}</span>
+                                                            <p className="truncate">{msg.replyTo.isDeleted ? 'Deleted message' : (msg.replyTo.messageType === 'file' ? `📎 ${msg.replyTo.fileName}` : msg.replyTo.content)}</p>
+                                                        </div>
+                                                    )}
+                                                    {msg.isDeleted ? (
+                                                        <p className="italic opacity-50">Message deleted</p>
+                                                    ) : msg.messageType === 'file' ? (
+                                                        <ChatFileMessage fileUrl={msg.fileUrl ?? ''} fileName={msg.fileName ?? 'File'} fileMime={msg.fileMime} isMe={isMe} />
+                                                    ) : (
+                                                        <p className="leading-relaxed">{msg.content}</p>
+                                                    )}
+                                                    <div className={`flex items-center justify-end gap-1 mt-1 text-[10px] ${isMe ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                                                        <span>{formatTime(msg.createdAt)}</span>
+                                                        {isMe && <CheckCheck className="h-3 w-3" />}
+                                                    </div>
+                                                </div>
+                                            </SwipeableMessage>
+                                            {!msg.isDeleted && (
+                                                <div className="mt-0.5">
+                                                    <MessageReactions reactions={msg.reactions} myUserId={user?._id ?? ''} onReact={(emoji) => socket?.emit('chat:react_message', { messageId: msg._id, emoji })} isMine={isMe} />
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </motion.div>
                             );

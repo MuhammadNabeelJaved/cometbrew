@@ -362,6 +362,82 @@ export async function initSocket(httpServer, corsOptions) {
             }
         });
 
+        // ── React to a message (toggle emoji reaction) ────────────────────────
+        socket.on("chat:react_message", async ({ messageId, emoji }) => {
+            try {
+                const msg = await Message.findById(messageId);
+                if (!msg) return;
+
+                const existing = msg.reactions.find((r) => r.emoji === emoji);
+                const userId = user._id.toString();
+
+                if (existing) {
+                    const alreadyReacted = existing.users.some((u) => u.toString() === userId);
+                    if (alreadyReacted) {
+                        existing.users = existing.users.filter((u) => u.toString() !== userId);
+                        if (existing.users.length === 0) {
+                            msg.reactions = msg.reactions.filter((r) => r.emoji !== emoji);
+                        }
+                    } else {
+                        existing.users.push(user._id);
+                    }
+                } else {
+                    msg.reactions.push({ emoji, users: [user._id] });
+                }
+
+                await msg.save();
+                io.to(`conversation:${msg.conversationId}`).emit("chat:reaction_updated", {
+                    messageId,
+                    reactions: msg.reactions,
+                });
+            } catch {
+                socket.emit("error:global", { message: "Failed to update reaction" });
+            }
+        });
+
+        // ── Pin / unpin a message ─────────────────────────────────────────────
+        socket.on("chat:pin_message", async ({ messageId }) => {
+            try {
+                const msg = await Message.findById(messageId);
+                if (!msg) return;
+
+                const convo = await Conversation.findById(msg.conversationId);
+                if (!convo) return;
+                const isParticipant = convo.participants.some((p) => p.toString() === user._id.toString());
+                if (!isParticipant && user.role !== "admin") {
+                    socket.emit("error:global", { message: "Access denied" });
+                    return;
+                }
+
+                msg.isPinned = !msg.isPinned;
+                msg.pinnedBy = msg.isPinned ? user._id : null;
+                await msg.save();
+
+                io.to(`conversation:${msg.conversationId}`).emit("chat:message_pinned", {
+                    messageId,
+                    isPinned: msg.isPinned,
+                    pinnedBy: msg.isPinned ? { _id: user._id, name: user.name } : null,
+                });
+            } catch {
+                socket.emit("error:global", { message: "Failed to pin message" });
+            }
+        });
+
+        // ── Set availability status ───────────────────────────────────────────
+        socket.on("user:set_status", async ({ status }) => {
+            const VALID = ["available", "busy", "meeting", "away", "wfh", "offline"];
+            if (!VALID.includes(status)) return;
+            try {
+                await User.findByIdAndUpdate(user._id, { availabilityStatus: status });
+                const payload = { userId: user._id, status, userName: user.name };
+                io.to("team:global").emit("user:status_changed", payload);
+                io.to("admin:global").emit("user:status_changed", payload);
+                socket.emit("user:status_changed", payload);
+            } catch {
+                socket.emit("error:global", { message: "Failed to update status" });
+            }
+        });
+
         // ── Disconnect cleanup ────────────────────────────────────────────────
         socket.on("disconnect", () => {
             // Socket.IO automatically removes the socket from all rooms on disconnect

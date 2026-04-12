@@ -127,6 +127,7 @@ import databaseRoutes from "./routes/userRoutes/database.route.js";
 import cookieConsentRoutes from "./routes/userRoutes/cookieConsent.route.js";
 import supportTicketRoutes from "./routes/userRoutes/supportTicket.route.js";
 import chatbotRoutes from "./routes/userRoutes/chatbot.route.js";
+import standupRoutes from "./routes/userRoutes/standup.route.js";
 
 // ─── Dev-only Utilities ──────────────────────────────────────────────────────
 // These endpoints are BLOCKED in production. They are only registered when
@@ -163,6 +164,7 @@ app.use("/api/v1/database", databaseRoutes);           // Admin database manager
 app.use("/api/v1/consent", cookieConsentRoutes);       // GDPR cookie consent audit log
 app.use("/api/v1/support-tickets", supportTicketRoutes); // User support tickets
 app.use("/api/v1/chatbot",         chatbotRoutes);         // AI chatbot (public chat + admin management)
+app.use("/api/v1/standup",         standupRoutes);          // Daily standup notes + availability status
 
 // ─── Error Handling ─────────────────────────────────────────────────────────
 

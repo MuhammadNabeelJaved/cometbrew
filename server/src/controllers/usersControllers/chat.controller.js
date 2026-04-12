@@ -328,3 +328,52 @@ export const deleteConversation = asyncHandler(async (req, res) => {
 
     successResponse(res, "Conversation deleted");
 });
+
+// =============================================================================
+// GET /api/v1/chat/conversations/:id/pinned
+// =============================================================================
+export const getPinnedMessages = asyncHandler(async (req, res) => {
+    const { id: conversationId } = req.params;
+    const convoQuery = req.user.role === "admin"
+        ? { _id: conversationId }
+        : { _id: conversationId, participants: req.user._id };
+    const conversation = await Conversation.findOne(convoQuery);
+    if (!conversation) throw new AppError("Conversation not found or access denied", 404);
+
+    const pinned = await Message.find({ conversationId, isPinned: true, isDeleted: false })
+        .populate("senderId", "name photo role")
+        .populate("pinnedBy", "name")
+        .sort({ createdAt: -1 })
+        .lean();
+
+    successResponse(res, "Pinned messages fetched", pinned);
+});
+
+// =============================================================================
+// GET /api/v1/chat/conversations/:id/search?q=
+// =============================================================================
+export const searchMessages = asyncHandler(async (req, res) => {
+    const { id: conversationId } = req.params;
+    const { q = "" } = req.query;
+
+    if (!q.trim()) { successResponse(res, "No query", []); return; }
+
+    const convoQuery = req.user.role === "admin"
+        ? { _id: conversationId }
+        : { _id: conversationId, participants: req.user._id };
+    const conversation = await Conversation.findOne(convoQuery);
+    if (!conversation) throw new AppError("Conversation not found or access denied", 404);
+
+    const results = await Message.find({
+        conversationId,
+        isDeleted: false,
+        messageType: "text",
+        content: { $regex: q.trim(), $options: "i" },
+    })
+        .populate("senderId", "name photo")
+        .sort({ createdAt: 1 })
+        .limit(50)
+        .lean();
+
+    successResponse(res, "Search results", results);
+});

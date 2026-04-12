@@ -17,6 +17,7 @@ import {
   ArrowUpRight,
   MoreHorizontal,
   Loader2,
+  Smile, Meh, Frown, Zap, ShieldAlert,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -35,6 +36,7 @@ import {
 } from '../../components/ui/dropdown-menu';
 import { tasksApi } from '../../api/tasks.api';
 import { adminProjectsApi } from '../../api/adminProjects.api';
+import { standupApi, StandupNote, AvailabilityStatus } from '../../api/standup.api';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
 
@@ -118,19 +120,38 @@ export default function TeamDashboardHome() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // ── Standup state ─────────────────────────────────────────────────────────
+  const [standup, setStandup] = useState<StandupNote | null>(null);
+  const [standupForm, setStandupForm] = useState({ didYesterday: '', doingToday: '', blockers: '', mood: 'good' as StandupNote['mood'] });
+  const [isSavingStandup, setIsSavingStandup] = useState(false);
+  const [standupSaved, setStandupSaved] = useState(false);
+  const [myStatus, setMyStatus] = useState<AvailabilityStatus>('available');
+
   // ── Fetch ──────────────────────────────────────────────────────────────────
 
   const fetchAll = async () => {
     try {
-      const [tasksRes, projectsRes] = await Promise.all([
+      const [tasksRes, projectsRes, standupRes] = await Promise.all([
         tasksApi.getAll(),
         adminProjectsApi.getAll(),
+        standupApi.getTodayStandup(),
       ]);
       // getAll returns { tasks: [...], pagination: {} }
       const allTasks: Task[] = tasksRes.data.data?.tasks ?? tasksRes.data.data ?? [];
       setTasks(allTasks);
       const pd = projectsRes.data.data;
       setProjects(pd?.projects || pd || []);
+      const existingStandup = standupRes.data.data;
+      if (existingStandup) {
+        setStandup(existingStandup);
+        setStandupForm({
+          didYesterday: existingStandup.didYesterday,
+          doingToday: existingStandup.doingToday,
+          blockers: existingStandup.blockers,
+          mood: existingStandup.mood,
+        });
+        setStandupSaved(true);
+      }
     } catch (err: any) {
       toast.error('Failed to load dashboard data', { description: err?.response?.data?.message || 'Please try again.' });
     } finally {
@@ -139,6 +160,34 @@ export default function TeamDashboardHome() {
   };
 
   useEffect(() => { fetchAll(); }, []);
+
+  const handleSaveStandup = async () => {
+    setIsSavingStandup(true);
+    try {
+      const res = await standupApi.upsertStandup(standupForm);
+      setStandup(res.data.data);
+      setStandupSaved(true);
+      toast.success('Standup saved!');
+    } catch { toast.error('Failed to save standup'); }
+    finally { setIsSavingStandup(false); }
+  };
+
+  const STATUS_OPTS: { value: AvailabilityStatus; label: string; color: string; emoji: string }[] = [
+    { value: 'available', label: 'Available', color: 'bg-green-500', emoji: '🟢' },
+    { value: 'busy', label: 'Busy', color: 'bg-red-500', emoji: '🔴' },
+    { value: 'meeting', label: 'In Meeting', color: 'bg-amber-500', emoji: '🟡' },
+    { value: 'away', label: 'Away', color: 'bg-gray-400', emoji: '⚪' },
+    { value: 'wfh', label: 'WFH', color: 'bg-blue-500', emoji: '🔵' },
+    { value: 'offline', label: 'Offline', color: 'bg-slate-500', emoji: '⚫' },
+  ];
+
+  const MOOD_OPTS: { value: StandupNote['mood']; emoji: string; label: string }[] = [
+    { value: 'great', emoji: '🚀', label: 'Great' },
+    { value: 'good', emoji: '😊', label: 'Good' },
+    { value: 'okay', emoji: '😐', label: 'Okay' },
+    { value: 'stressed', emoji: '😰', label: 'Stressed' },
+    { value: 'blocked', emoji: '🚫', label: 'Blocked' },
+  ];
 
   // ── Status update ─────────────────────────────────────────────────────────
 
@@ -275,6 +324,99 @@ export default function TeamDashboardHome() {
           </CardContent>
         </Card>
       </div>
+
+      {/* ── Daily Standup & Availability ───────────────────────────────────── */}
+      <Card className="border-border/60 shadow-sm">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <CardTitle className="text-base">Daily Standup</CardTitle>
+              <CardDescription>Your check-in for today · {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</CardDescription>
+            </div>
+            {/* Availability status picker */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground hidden sm:inline">Status:</span>
+              <div className="flex gap-1 flex-wrap">
+                {STATUS_OPTS.map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={async () => {
+                      setMyStatus(opt.value);
+                      try { await standupApi.updateStatus(opt.value); }
+                      catch { toast.error('Failed to update status'); }
+                    }}
+                    title={opt.label}
+                    className={`text-xs px-2 py-1 rounded-full border transition-all ${myStatus === opt.value ? 'border-primary bg-primary/10 font-semibold' : 'border-border/40 hover:border-border'}`}
+                  >
+                    {opt.emoji} {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {standupSaved && standup ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-green-600 flex items-center gap-1.5">
+                  <CheckCircle2 className="h-4 w-4" /> Standup submitted!
+                </span>
+                <button onClick={() => setStandupSaved(false)} className="text-xs text-muted-foreground hover:text-foreground underline">Edit</button>
+              </div>
+              <div className="grid sm:grid-cols-3 gap-3 text-sm">
+                <div className="bg-muted/30 rounded-xl p-3">
+                  <p className="text-xs text-muted-foreground font-medium mb-1">Yesterday</p>
+                  <p className="text-sm leading-relaxed">{standup.didYesterday || '—'}</p>
+                </div>
+                <div className="bg-muted/30 rounded-xl p-3">
+                  <p className="text-xs text-muted-foreground font-medium mb-1">Today</p>
+                  <p className="text-sm leading-relaxed">{standup.doingToday || '—'}</p>
+                </div>
+                <div className="bg-muted/30 rounded-xl p-3">
+                  <p className="text-xs text-muted-foreground font-medium mb-1">Blockers</p>
+                  <p className="text-sm leading-relaxed">{standup.blockers || '—'}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>Mood:</span>
+                <span>{MOOD_OPTS.find(m => m.value === standup.mood)?.emoji} {MOOD_OPTS.find(m => m.value === standup.mood)?.label}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {/* Mood selector */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-muted-foreground font-medium">Mood today:</span>
+                {MOOD_OPTS.map(opt => (
+                  <button key={opt.value} onClick={() => setStandupForm(f => ({ ...f, mood: opt.value }))} title={opt.label}
+                    className={`text-lg transition-all ${standupForm.mood === opt.value ? 'scale-125' : 'opacity-50 hover:opacity-80'}`}>
+                    {opt.emoji}
+                  </button>
+                ))}
+              </div>
+              <div className="grid sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xs text-muted-foreground font-medium block mb-1">What did you do yesterday?</label>
+                  <textarea value={standupForm.didYesterday} onChange={e => setStandupForm(f => ({ ...f, didYesterday: e.target.value }))} rows={3} placeholder="Completed the login API, reviewed PRs…" className="w-full text-sm rounded-xl border border-border/50 bg-muted/20 px-3 py-2 outline-none focus:ring-2 focus:ring-primary/30 resize-none placeholder:text-muted-foreground/50" />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground font-medium block mb-1">What will you do today?</label>
+                  <textarea value={standupForm.doingToday} onChange={e => setStandupForm(f => ({ ...f, doingToday: e.target.value }))} rows={3} placeholder="Finish dashboard UI, team call at 2pm…" className="w-full text-sm rounded-xl border border-border/50 bg-muted/20 px-3 py-2 outline-none focus:ring-2 focus:ring-primary/30 resize-none placeholder:text-muted-foreground/50" />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground font-medium block mb-1">Any blockers?</label>
+                  <textarea value={standupForm.blockers} onChange={e => setStandupForm(f => ({ ...f, blockers: e.target.value }))} rows={3} placeholder="Waiting for design assets, blocked on…" className="w-full text-sm rounded-xl border border-border/50 bg-muted/20 px-3 py-2 outline-none focus:ring-2 focus:ring-primary/30 resize-none placeholder:text-muted-foreground/50" />
+                </div>
+              </div>
+              <Button onClick={handleSaveStandup} disabled={isSavingStandup || (!standupForm.didYesterday && !standupForm.doingToday)} className="gap-2">
+                {isSavingStandup ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                Submit Standup
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 md:grid-cols-7">
 

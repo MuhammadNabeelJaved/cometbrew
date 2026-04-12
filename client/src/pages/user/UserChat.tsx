@@ -9,6 +9,7 @@ import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
 import { Send, Paperclip, Phone, Video, MoreVertical, Loader2, CheckCheck,
     UserCircle, BellOff, Bell, Eraser, X, Mail, ShieldCheck, Calendar, ChevronRight, ArrowDown,
+    Search, Pin, PinOff,
 } from 'lucide-react';
 import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -18,9 +19,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
-import { chatApi, ChatMessage, Conversation } from '../../api/chat.api';
+import { chatApi, ChatMessage, Conversation, MessageReaction } from '../../api/chat.api';
 import { ChatFileMessage } from '../../components/ChatFileMessage';
 import { SwipeableMessage } from '../../components/SwipeableMessage';
+import { MessageReactions } from '../../components/MessageReactions';
 
 export default function UserChat() {
     const { user } = useAuth();
@@ -42,6 +44,14 @@ export default function UserChat() {
     const [isActioning, setIsActioning] = useState(false);
     const [showScrollBtn, setShowScrollBtn] = useState(false);
     const [newBelowCount, setNewBelowCount] = useState(0);
+    // Search state
+    const [searchOpen, setSearchOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchResults, setSearchResults] = useState<ChatMessage[]>([]);
+    const [searchIdx, setSearchIdx] = useState(0);
+    const [isSearching, setIsSearching] = useState(false);
+    const searchInputRef = useRef<HTMLInputElement>(null);
+
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const messagesContainerRef = useRef<HTMLDivElement>(null);
     const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -125,14 +135,26 @@ export default function UserChat() {
             );
         };
 
+        const onReactionUpdated = ({ messageId, reactions }: { messageId: string; reactions: MessageReaction[] }) => {
+            setMessages((prev) => prev.map((m) => m._id === messageId ? { ...m, reactions } : m));
+        };
+
+        const onMessagePinned = ({ messageId, isPinned, pinnedBy }: { messageId: string; isPinned: boolean; pinnedBy: any }) => {
+            setMessages((prev) => prev.map((m) => m._id === messageId ? { ...m, isPinned, pinnedBy } : m));
+        };
+
         socket.on('chat:new_message', onNewMessage);
         socket.on('chat:typing_indicator', onTyping);
         socket.on('chat:message_deleted', onDeleted);
+        socket.on('chat:reaction_updated', onReactionUpdated);
+        socket.on('chat:message_pinned', onMessagePinned);
 
         return () => {
             socket.off('chat:new_message', onNewMessage);
             socket.off('chat:typing_indicator', onTyping);
             socket.off('chat:message_deleted', onDeleted);
+            socket.off('chat:reaction_updated', onReactionUpdated);
+            socket.off('chat:message_pinned', onMessagePinned);
         };
     }, [socket, conversation?._id]);
 
@@ -285,6 +307,37 @@ export default function UserChat() {
     const formatTime = (dateStr: string) =>
         new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+    // ── Search handlers ──────────────────────────────────────────────────────
+    const handleSearch = async (q: string) => {
+        setSearchQuery(q);
+        if (!q.trim() || !conversation) { setSearchResults([]); return; }
+        setIsSearching(true);
+        try {
+            const res = await chatApi.searchMessages(conversation._id, q);
+            const results = res.data.data || [];
+            setSearchResults(results);
+            setSearchIdx(0);
+            if (results.length > 0) scrollToSearchResult(results[0]._id);
+        } catch { /* silent */ }
+        finally { setIsSearching(false); }
+    };
+
+    const scrollToSearchResult = (msgId: string) => {
+        setHighlightedMsgId(msgId);
+        setTimeout(() => {
+            const el = document.querySelector(`[data-message-id="${msgId}"]`);
+            el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 50);
+        setTimeout(() => setHighlightedMsgId(null), 2500);
+    };
+
+    const navigateSearch = (dir: 1 | -1) => {
+        if (!searchResults.length) return;
+        const next = (searchIdx + dir + searchResults.length) % searchResults.length;
+        setSearchIdx(next);
+        scrollToSearchResult(searchResults[next]._id);
+    };
+
     return (
         <>
         <div className="h-[calc(100vh-140px)] flex flex-col lg:flex-row gap-6">
@@ -363,6 +416,9 @@ export default function UserChat() {
                         </div>
                     </div>
                     <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" className={`text-muted-foreground hover:text-primary ${searchOpen ? 'text-primary bg-primary/10' : ''}`} onClick={() => { setSearchOpen(v => !v); setSearchQuery(''); setSearchResults([]); setTimeout(() => searchInputRef.current?.focus(), 100); }}>
+                            <Search className="h-4 w-4" />
+                        </Button>
                         <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
                             <Phone className="h-4 w-4" />
                         </Button>
@@ -398,6 +454,40 @@ export default function UserChat() {
                         </DropdownMenu>
                     </div>
                 </div>
+
+                {/* Search bar */}
+                <AnimatePresence>
+                    {searchOpen && (
+                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="border-b border-border/50 overflow-hidden">
+                            <div className="flex items-center gap-2 px-4 py-2 bg-muted/30">
+                                <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+                                <input
+                                    ref={searchInputRef}
+                                    value={searchQuery}
+                                    onChange={(e) => handleSearch(e.target.value)}
+                                    placeholder="Search messages…"
+                                    className="flex-1 text-sm bg-transparent outline-none placeholder:text-muted-foreground"
+                                />
+                                {searchResults.length > 0 && (
+                                    <span className="text-xs text-muted-foreground shrink-0">{searchIdx + 1}/{searchResults.length}</span>
+                                )}
+                                {searchResults.length > 1 && (
+                                    <>
+                                        <button onClick={() => navigateSearch(-1)} className="text-xs px-1.5 py-0.5 rounded hover:bg-accent">↑</button>
+                                        <button onClick={() => navigateSearch(1)} className="text-xs px-1.5 py-0.5 rounded hover:bg-accent">↓</button>
+                                    </>
+                                )}
+                                {isSearching && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                                {searchQuery && !isSearching && searchResults.length === 0 && (
+                                    <span className="text-xs text-muted-foreground">No results</span>
+                                )}
+                                <button onClick={() => { setSearchOpen(false); setSearchQuery(''); setSearchResults([]); }} className="text-muted-foreground hover:text-foreground">
+                                    <X className="h-4 w-4" />
+                                </button>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
                 {/* Messages */}
                 <div className="flex-1 relative overflow-hidden">
@@ -454,41 +544,69 @@ export default function UserChat() {
                                     )}
 
                                     <div className={`max-w-[65%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                                        {/* Pin indicator */}
+                                        {msg.isPinned && (
+                                            <div className="flex items-center gap-1 text-[10px] text-amber-500 mb-0.5 px-1">
+                                                <Pin className="h-3 w-3" />
+                                                <span>Pinned by {msg.pinnedBy?.name ?? 'someone'}</span>
+                                            </div>
+                                        )}
                                         {isFirstInGroup && !isMe && (
                                             <span className="text-[11px] font-semibold text-muted-foreground mb-1 px-1">{senderName}</span>
                                         )}
-                                        <SwipeableMessage msg={msg} isMe={isMe} onReply={setReplyTo} onDelete={handleDelete}>
-                                            <div
-                                                className={`px-4 py-2.5 shadow-sm text-sm ${
-                                                    isMe
-                                                        ? `bg-primary text-primary-foreground ${isFirstInGroup ? 'rounded-2xl rounded-tr-sm' : 'rounded-2xl'}`
-                                                        : `bg-card border border-border/50 ${isFirstInGroup ? 'rounded-2xl rounded-tl-sm' : 'rounded-2xl'}`
-                                                }`}
-                                            >
-                                                {msg.replyTo && (
-                                                    <div className={`mb-2 px-2 py-1 rounded-lg border-l-2 text-xs opacity-70 ${isMe ? 'border-white/40 bg-white/10' : 'border-primary/40 bg-muted/50'}`}>
-                                                        <span className="font-semibold">{msg.replyTo.senderId?.name ?? 'Deleted User'}</span>
-                                                        <p className="truncate">{msg.replyTo.isDeleted ? 'Deleted message' : (msg.replyTo.messageType === 'file' ? `📎 ${msg.replyTo.fileName}` : msg.replyTo.content)}</p>
-                                                    </div>
-                                                )}
-                                                {msg.isDeleted ? (
-                                                    <p className="italic opacity-50">Message deleted</p>
-                                                ) : msg.messageType === 'file' ? (
-                                                    <ChatFileMessage
-                                                        fileUrl={msg.fileUrl ?? ''}
-                                                        fileName={msg.fileName ?? 'File'}
-                                                        fileMime={msg.fileMime}
-                                                        isMe={isMe}
-                                                    />
-                                                ) : (
-                                                    <p className="leading-relaxed">{msg.content}</p>
-                                                )}
-                                                <div className={`flex items-center justify-end gap-1 mt-1 text-[10px] ${isMe ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                                                    <span>{formatTime(msg.createdAt)}</span>
-                                                    {isMe && <CheckCheck className="h-3 w-3" />}
+                                        <div className="group relative">
+                                            {/* Quick action buttons on hover */}
+                                            {!msg.isDeleted && (
+                                                <div className={`absolute top-1 ${isMe ? 'right-full mr-1' : 'left-full ml-1'} hidden group-hover:flex items-center gap-0.5 z-10`}>
+                                                    <button onClick={() => socket?.emit('chat:pin_message', { messageId: msg._id })} title={msg.isPinned ? 'Unpin' : 'Pin'} className="p-1 rounded-lg bg-background border border-border/50 hover:bg-accent text-muted-foreground hover:text-foreground transition-colors shadow-sm">
+                                                        {msg.isPinned ? <PinOff className="h-3 w-3" /> : <Pin className="h-3 w-3" />}
+                                                    </button>
                                                 </div>
-                                            </div>
-                                        </SwipeableMessage>
+                                            )}
+                                            <SwipeableMessage msg={msg} isMe={isMe} onReply={setReplyTo} onDelete={handleDelete}>
+                                                <div
+                                                    className={`px-4 py-2.5 shadow-sm text-sm ${
+                                                        isMe
+                                                            ? `bg-primary text-primary-foreground ${isFirstInGroup ? 'rounded-2xl rounded-tr-sm' : 'rounded-2xl'}`
+                                                            : `bg-card border border-border/50 ${isFirstInGroup ? 'rounded-2xl rounded-tl-sm' : 'rounded-2xl'}`
+                                                    }`}
+                                                >
+                                                    {msg.replyTo && (
+                                                        <div className={`mb-2 px-2 py-1 rounded-lg border-l-2 text-xs opacity-70 ${isMe ? 'border-white/40 bg-white/10' : 'border-primary/40 bg-muted/50'}`}>
+                                                            <span className="font-semibold">{msg.replyTo.senderId?.name ?? 'Deleted User'}</span>
+                                                            <p className="truncate">{msg.replyTo.isDeleted ? 'Deleted message' : (msg.replyTo.messageType === 'file' ? `📎 ${msg.replyTo.fileName}` : msg.replyTo.content)}</p>
+                                                        </div>
+                                                    )}
+                                                    {msg.isDeleted ? (
+                                                        <p className="italic opacity-50">Message deleted</p>
+                                                    ) : msg.messageType === 'file' ? (
+                                                        <ChatFileMessage
+                                                            fileUrl={msg.fileUrl ?? ''}
+                                                            fileName={msg.fileName ?? 'File'}
+                                                            fileMime={msg.fileMime}
+                                                            isMe={isMe}
+                                                        />
+                                                    ) : (
+                                                        <p className="leading-relaxed">{msg.content}</p>
+                                                    )}
+                                                    <div className={`flex items-center justify-end gap-1 mt-1 text-[10px] ${isMe ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                                                        <span>{formatTime(msg.createdAt)}</span>
+                                                        {isMe && <CheckCheck className="h-3 w-3" />}
+                                                    </div>
+                                                </div>
+                                            </SwipeableMessage>
+                                            {/* Reactions */}
+                                            {!msg.isDeleted && (
+                                                <div className="mt-0.5">
+                                                    <MessageReactions
+                                                        reactions={msg.reactions}
+                                                        myUserId={user?._id ?? ''}
+                                                        onReact={(emoji) => socket?.emit('chat:react_message', { messageId: msg._id, emoji })}
+                                                        isMine={isMe}
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </motion.div>
                             );
