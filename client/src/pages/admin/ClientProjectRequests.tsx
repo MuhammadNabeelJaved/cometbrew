@@ -8,8 +8,11 @@ import { useLocation } from 'react-router-dom';
 import {
   Search, Loader2, X, Eye, CheckCircle2, Clock, RefreshCw,
   AlertCircle, FolderKanban, FileText, Save, Trash2, Check, XCircle,
-  CalendarDays, UserPlus, Users, ChevronLeft, ChevronRight,
+  CalendarDays, UserPlus, Users, ChevronLeft, ChevronRight, Download,
 } from 'lucide-react';
+import { useBulkSelect } from '../../hooks/useBulkSelect';
+import { BulkActionBar } from '../../components/BulkActionBar';
+import { exportToCsv } from '../../lib/exportCsv';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -126,6 +129,12 @@ export default function ClientProjectRequests() {
   const [rejectingId, setRejectingId]   = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [deleting, setDeleting]         = useState(false);
+
+  // Bulk select
+  const bulk = useBulkSelect(filtered);
+  const [bulkApproving, setBulkApproving] = useState(false);
+  const [bulkRejecting, setBulkRejecting] = useState(false);
+  const [bulkDeleting,  setBulkDeleting]  = useState(false);
 
   // ── Fetch requests ────────────────────────────────────────────────────────
 
@@ -272,6 +281,66 @@ export default function ClientProjectRequests() {
     }
   };
 
+  // ── Bulk: Approve ─────────────────────────────────────────────────────────
+
+  const handleBulkApprove = async () => {
+    setBulkApproving(true);
+    try {
+      await Promise.allSettled(bulk.ids.map(id => apiClient.patch(`/projects/${id}`, { status: 'approved' })));
+      setRequests(prev => prev.map(r => bulk.ids.includes(r._id) ? { ...r, status: 'approved' as const } : r));
+      toast.success(`${bulk.count} project${bulk.count > 1 ? 's' : ''} approved`);
+      bulk.clear();
+    } catch { toast.error('Some approvals failed'); }
+    finally { setBulkApproving(false); }
+  };
+
+  // ── Bulk: Reject ──────────────────────────────────────────────────────────
+
+  const handleBulkReject = async () => {
+    setBulkRejecting(true);
+    try {
+      await Promise.allSettled(bulk.ids.map(id => apiClient.patch(`/projects/${id}`, { status: 'rejected' })));
+      setRequests(prev => prev.map(r => bulk.ids.includes(r._id) ? { ...r, status: 'rejected' as const } : r));
+      toast.success(`${bulk.count} project${bulk.count > 1 ? 's' : ''} rejected`);
+      bulk.clear();
+    } catch { toast.error('Some rejections failed'); }
+    finally { setBulkRejecting(false); }
+  };
+
+  // ── Bulk: Delete ──────────────────────────────────────────────────────────
+
+  const handleBulkDelete = async () => {
+    setBulkDeleting(true);
+    try {
+      await Promise.allSettled(bulk.ids.map(id => apiClient.delete(`/projects/${id}`)));
+      setRequests(prev => prev.filter(r => !bulk.ids.includes(r._id)));
+      toast.success(`${bulk.count} project${bulk.count > 1 ? 's' : ''} deleted`);
+      bulk.clear();
+    } catch { toast.error('Some deletes failed'); }
+    finally { setBulkDeleting(false); }
+  };
+
+  // ── Export CSV ────────────────────────────────────────────────────────────
+
+  const handleExport = () => {
+    const rows = filtered.map(r => ({
+      Project:       r.projectName,
+      Type:          r.projectType,
+      Client:        r.requestedBy?.name ?? '',
+      Email:         r.requestedBy?.email ?? '',
+      Budget:        r.budgetRange,
+      Status:        STATUS_LABELS[r.status] ?? r.status,
+      Progress:      `${r.progress}%`,
+      'Total Cost':  r.totalCost ?? '',
+      'Paid Amount': r.paidAmount ?? '',
+      Payment:       r.paymentStatus,
+      Deadline:      r.deadline ? new Date(r.deadline).toLocaleDateString() : '',
+      Submitted:     new Date(r.createdAt).toLocaleDateString(),
+    }));
+    exportToCsv(rows, 'project-requests');
+    toast.success('CSV exported');
+  };
+
   // ── Stats ─────────────────────────────────────────────────────────────────
 
   const total     = requests.length;
@@ -306,9 +375,14 @@ export default function ClientProjectRequests() {
           <h1 className="text-3xl font-bold tracking-tight">Client Project Requests</h1>
           <p className="text-muted-foreground">Review, manage, and assign project requests to your team.</p>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchRequests} className="gap-2">
-          <RefreshCw className="h-4 w-4" /> Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleExport} className="gap-2" disabled={filtered.length === 0}>
+            <Download className="h-4 w-4" /> Export CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={fetchRequests} className="gap-2">
+            <RefreshCw className="h-4 w-4" /> Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -390,6 +464,16 @@ export default function ClientProjectRequests() {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/40 hover:bg-muted/40">
+                <TableHead className="w-10 pr-0">
+                  <input
+                    type="checkbox"
+                    checked={bulk.allSelected}
+                    ref={el => { if (el) el.indeterminate = bulk.someSelected; }}
+                    onChange={bulk.toggleAll}
+                    className="h-4 w-4 rounded border-border accent-primary cursor-pointer"
+                    title="Select all"
+                  />
+                </TableHead>
                 <TableHead>Project</TableHead>
                 <TableHead>Client</TableHead>
                 <TableHead>Type</TableHead>
@@ -404,7 +488,16 @@ export default function ClientProjectRequests() {
             </TableHeader>
             <TableBody>
               {paginated.map(req => (
-                <TableRow key={req._id} className="hover:bg-muted/20">
+                <TableRow key={req._id} className={`hover:bg-muted/20 transition-colors ${bulk.isSelected(req._id) ? 'bg-primary/5 border-l-2 border-l-primary' : ''}`}>
+                  {/* Checkbox */}
+                  <TableCell className="pr-0" onClick={e => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={bulk.isSelected(req._id)}
+                      onChange={() => bulk.toggle(req._id)}
+                      className="h-4 w-4 rounded border-border accent-primary cursor-pointer"
+                    />
+                  </TableCell>
                   {/* Project */}
                   <TableCell className="font-semibold max-w-[150px]">
                     <p className="truncate">{req.projectName}</p>
@@ -786,6 +879,18 @@ export default function ClientProjectRequests() {
         onConfirm={handleDelete}
         loading={deleting}
         description="This will permanently delete the project request and all its attachments."
+      />
+
+      {/* Bulk Action Bar */}
+      <BulkActionBar
+        count={bulk.count}
+        onClear={bulk.clear}
+        itemLabel="request"
+        actions={[
+          { label: 'Approve',  icon: CheckCircle2, onClick: handleBulkApprove, loading: bulkApproving },
+          { label: 'Reject',   icon: XCircle,      onClick: handleBulkReject,  loading: bulkRejecting, variant: 'destructive' },
+          { label: 'Delete',   icon: Trash2,        onClick: handleBulkDelete,  loading: bulkDeleting,  variant: 'destructive' },
+        ]}
       />
     </div>
   );

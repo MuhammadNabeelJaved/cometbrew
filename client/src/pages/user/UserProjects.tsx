@@ -20,6 +20,7 @@ import {
   AlertCircle,
   RefreshCw,
   Trash2,
+  Download,
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -41,6 +42,7 @@ import { toast } from 'sonner';
 import { projectsApi } from '../../api/projects.api';
 import ConfirmDeleteDialog from '../../components/ui/ConfirmDeleteDialog';
 import { useDataRealtime } from '../../hooks/useDataRealtime';
+import { exportToCsv } from '../../lib/exportCsv';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -214,9 +216,27 @@ export default function UserProjects() {
           <h1 className="text-3xl font-bold tracking-tight">My Projects</h1>
           <p className="text-muted-foreground">Manage and track your ongoing projects.</p>
         </div>
-        <Button className="gap-2" onClick={() => setShowCreateModal(true)}>
-          <Plus className="h-4 w-4" /> Start New Project
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-2"
+            onClick={() => {
+              const rows = filtered.map(p => ({
+                Project: p.projectName, Type: p.projectType, Budget: p.budgetRange,
+                Status: STATUS_LABELS[p.status] ?? p.status, Progress: `${p.progress}%`,
+                'Total Cost': p.totalCost ?? '', 'Paid': p.paidAmount ?? '',
+                Payment: p.paymentStatus, Deadline: p.deadline ? new Date(p.deadline).toLocaleDateString() : '',
+                Submitted: new Date(p.createdAt).toLocaleDateString(),
+              }));
+              exportToCsv(rows, 'my-projects');
+              toast.success('CSV exported');
+            }}
+            disabled={filtered.length === 0}
+          >
+            <Download className="h-4 w-4" /> Export
+          </Button>
+          <Button className="gap-2" onClick={() => setShowCreateModal(true)}>
+            <Plus className="h-4 w-4" /> Start New Project
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -313,6 +333,48 @@ export default function UserProjects() {
                         />
                       </div>
                     </div>
+
+                    {/* Status Stepper */}
+                    {project.status !== 'rejected' ? (
+                      <div className="flex items-center gap-0.5">
+                        {[
+                          { key: 'pending',   label: 'Submitted' },
+                          { key: 'in_review', label: 'Review'    },
+                          { key: 'approved',  label: 'Approved'  },
+                          { key: 'completed', label: 'Done'      },
+                        ].map((step, idx, arr) => {
+                          const order = ['pending','in_review','approved','completed'];
+                          const currentIdx = order.indexOf(project.status);
+                          const stepIdx    = order.indexOf(step.key);
+                          const isDone    = stepIdx < currentIdx;
+                          const isActive  = stepIdx === currentIdx;
+                          return (
+                            <React.Fragment key={step.key}>
+                              <div className="flex flex-col items-center gap-1 flex-1">
+                                <div className={`h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold border-2 transition-all ${
+                                  isDone   ? 'bg-primary border-primary text-primary-foreground' :
+                                  isActive ? 'bg-primary/20 border-primary text-primary' :
+                                             'bg-muted border-border text-muted-foreground'
+                                }`}>
+                                  {isDone ? '✓' : idx + 1}
+                                </div>
+                                <span className={`text-[9px] font-medium leading-none text-center ${isActive ? 'text-primary' : isDone ? 'text-foreground' : 'text-muted-foreground'}`}>
+                                  {step.label}
+                                </span>
+                              </div>
+                              {idx < arr.length - 1 && (
+                                <div className={`h-0.5 flex-1 mb-4 rounded-full transition-all ${stepIdx < currentIdx ? 'bg-primary' : 'bg-border'}`} />
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-xs text-red-500 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                        <span>This request was not accepted. You can delete and resubmit.</span>
+                      </div>
+                    )}
 
                     {/* Cost */}
                     <div className="grid grid-cols-2 gap-3 text-sm">

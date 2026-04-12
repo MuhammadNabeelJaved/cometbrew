@@ -16,7 +16,7 @@ import {
   TicketCheck, UserCheck, AlertTriangle, CheckCheck, Loader2, ChevronRight,
   Zap, Database, Settings, Bell, FileText, PlusCircle, Star, Target,
   BarChart3, Activity, DollarSign, TrendingDown, Calendar, Tag,
-  Radio, Trash2,
+  Radio, Trash2, Briefcase,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -814,7 +814,89 @@ export default function DashboardHome() {
         </Card>
       </motion.div>
 
-      {/* ── Row 6: Live Activity Feed ────────────────────────────────────────── */}
+      {/* ── Row 6: Priority Inbox ───────────────────────────────────────────── */}
+      {!loading && (() => {
+        const overdueProjects = recentProjects.filter(p =>
+          p.deadline && new Date(p.deadline) < new Date() && p.status !== 'completed'
+        );
+        const pendingRequests = recentProjects.filter(p => p.status === 'pending');
+        const urgentTickets   = recentTickets.filter(t => t.priority === 'Urgent' && t.status !== 'Resolved' && t.status !== 'Closed');
+        const pendingAppCount = (appStats?.byStatus?.find(s => s._id === 'pending')?.count ?? 0);
+
+        const items = [
+          ...urgentTickets.map(t => ({
+            id: t._id, icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-500/10',
+            label: `Urgent: ${t.subject}`,
+            sub: `Ticket · ${t.submittedBy?.name ?? 'Unknown'}`,
+            path: '/admin/support',
+          })),
+          ...overdueProjects.map(p => ({
+            id: p._id, icon: Clock, color: 'text-amber-500', bg: 'bg-amber-500/10',
+            label: `Overdue: ${p.projectName}`,
+            sub: `${p.projectType} · ${Math.abs(Math.ceil((new Date(p.deadline!).getTime() - Date.now()) / 86400000))}d past deadline`,
+            path: '/admin/client-requests',
+          })),
+          ...pendingRequests.slice(0, 3).map(p => ({
+            id: p._id + '-pending', icon: FolderKanban, color: 'text-violet-500', bg: 'bg-violet-500/10',
+            label: `Pending review: ${p.projectName}`,
+            sub: `${p.projectType} · needs decision`,
+            path: `/admin/client-requests?projectId=${p._id}`,
+          })),
+          ...(pendingAppCount > 0 ? [{
+            id: 'apps', icon: Briefcase, color: 'text-blue-500', bg: 'bg-blue-500/10',
+            label: `${pendingAppCount} unreviewed job application${pendingAppCount > 1 ? 's' : ''}`,
+            sub: 'Pending review in Job Applications',
+            path: '/admin/job-applications',
+          }] : []),
+        ];
+
+        if (items.length === 0) return null;
+
+        return (
+          <motion.div {...fadeUp} transition={{ delay:0.27 }}>
+            <Card className="border-amber-500/20">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="h-8 w-8 rounded-full bg-amber-500/10 flex items-center justify-center">
+                      <AlertTriangle className="h-4 w-4 text-amber-500" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-base">Priority Inbox</CardTitle>
+                      <CardDescription>{items.length} item{items.length !== 1 ? 's' : ''} need your attention</CardDescription>
+                    </div>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="space-y-1">
+                  {items.map(item => {
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => navigate(item.path)}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted/40 text-left transition-colors group"
+                      >
+                        <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${item.bg}`}>
+                          <Icon className={`h-3.5 w-3.5 ${item.color}`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">{item.label}</p>
+                          <p className="text-xs text-muted-foreground truncate">{item.sub}</p>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                      </button>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        );
+      })()}
+
+      {/* ── Row 7: Live Activity Feed ────────────────────────────────────────── */}
       <motion.div {...fadeUp} transition={{ delay:0.28 }}>
         <Card>
           <CardHeader className="pb-3">

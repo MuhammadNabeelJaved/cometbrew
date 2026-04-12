@@ -13,12 +13,13 @@ import {
 } from '../../components/ui/dialog';
 import {
   Plus, MoreHorizontal, Calendar, AlertCircle, Loader2,
-  Pencil, Trash2, MoveRight, X, CheckSquare, Square, CheckCheck,
+  Pencil, Trash2, MoveRight, X, CheckSquare, Square, CheckCheck, Download,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { tasksApi } from '../../api/tasks.api';
 import { toast } from 'sonner';
 import ConfirmDeleteDialog from '../../components/ui/ConfirmDeleteDialog';
+import { exportToCsv } from '../../lib/exportCsv';
 import { useBulkSelect } from '../../hooks/useBulkSelect';
 import { useDataRealtime } from '../../hooks/useDataRealtime';
 import { BulkActionBar } from '../../components/BulkActionBar';
@@ -322,9 +323,27 @@ export default function TeamTasks() {
             <h2 className="text-3xl font-bold tracking-tight">My Tasks</h2>
             <p className="text-muted-foreground">Manage your daily tasks and workflow.</p>
           </div>
-          <Button onClick={() => openAdd()}>
-            <Plus className="mr-2 h-4 w-4" /> New Task
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="gap-2"
+              onClick={() => {
+                const allTasks = Object.values(grouped).flat();
+                const rows = allTasks.map(t => ({
+                  Title: t.title, Status: t.status, Priority: t.priority,
+                  'Due Date': t.dueDate ? new Date(t.dueDate).toLocaleDateString() : '',
+                  Tags: (t.tags ?? []).join(', '),
+                  Description: t.description ?? '',
+                }));
+                exportToCsv(rows, 'my-tasks');
+                toast.success('Tasks exported');
+              }}
+              disabled={Object.values(grouped).flat().length === 0}
+            >
+              <Download className="h-4 w-4" /> Export
+            </Button>
+            <Button onClick={() => openAdd()}>
+              <Plus className="mr-2 h-4 w-4" /> New Task
+            </Button>
+          </div>
         </div>
 
         {/* Kanban Board */}
