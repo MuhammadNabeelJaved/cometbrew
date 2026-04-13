@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { io as socketIO } from 'socket.io-client';
+import { apiCache, TTL } from '../lib/apiCache';
 import { cmsApi } from '../api/cms.api';
 import { pageStatusApi, type PageStatusItem } from '../api/pageStatus.api';
 import { announcementsApi, type AnnouncementItem } from '../api/announcements.api';
@@ -365,10 +366,26 @@ export function ContentProvider({ children }: { children: React.ReactNode }) {
   };
 
   const fetchCMS = useCallback(async () => {
+    const CACHE_KEY = 'cms:main';
+    const cachedCms = apiCache.get(CACHE_KEY) as any;
+    if (cachedCms) {
+      const mapped = mapCmsToState(cachedCms);
+      setLogoUrl(mapped.logoUrl || defaultLogoUrl);
+      if (mapped.techStack.length > 0) setTechStack(mapped.techStack);
+      if (mapped.processSteps.length > 0) setProcessSteps(mapped.processSteps);
+      setWhyChooseUs(mapped.whyChooseUs);
+      setContactInfo(mapped.contactInfo);
+      setSocialLinks(mapped.socialLinks);
+      setTestimonials(mapped.testimonials);
+      setGlobalTheme(cachedCms.globalTheme ?? null);
+      setIsLoading(false);
+      return;
+    }
     try {
       const res = await cmsApi.get();
       const cms = res.data.data;
       if (!cms) return;
+      apiCache.set(CACHE_KEY, cms, TTL.TEN_MIN);
       const mapped = mapCmsToState(cms);
       setLogoUrl(mapped.logoUrl || defaultLogoUrl);
       if (mapped.techStack.length > 0) setTechStack(mapped.techStack);
@@ -407,8 +424,18 @@ export function ContentProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const fetchPageStatuses = useCallback(() => {
+    const CACHE_KEY = 'page-status:all';
+    const cached = apiCache.get(CACHE_KEY);
+    if (cached) {
+      setPageStatuses(cached as PageStatusItem[]);
+      return;
+    }
     pageStatusApi.getAll()
-      .then(res => setPageStatuses(res.data.data ?? []))
+      .then(res => {
+        const data = res.data.data ?? [];
+        apiCache.set(CACHE_KEY, data, TTL.TWO_MIN);
+        setPageStatuses(data);
+      })
       .catch(() => {});
   }, []);
 
