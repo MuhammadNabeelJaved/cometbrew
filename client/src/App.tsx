@@ -19,7 +19,7 @@ import { PublicLayout } from './layouts/PublicLayout';
 import { CookieConsent } from './components/CookieConsent';
 import { CookieConsentProvider } from './contexts/CookieConsentContext';
 import { useContent } from './contexts/ContentContext';
-import { ErrorBoundary } from './components/ErrorBoundary';
+import { ErrorBoundary, RouteWithBoundary } from './components/ErrorBoundary';
 import PageLoaderFallback from './pages/public/PageLoader';
 
 // Dashboard layouts (lazy — only needed for authenticated users)
@@ -219,41 +219,41 @@ export default function App() {
             <Routes>
               {/* Public Routes */}
               <Route element={<PublicLayout />}>
-                <Route path="/" element={<Suspense fallback={<PageLoaderFallback />}><ErrorBoundary><Home /></ErrorBoundary></Suspense>} />
-                <Route path="/services" element={<Suspense fallback={<PageLoaderFallback />}><ErrorBoundary><Services /></ErrorBoundary></Suspense>} />
-                <Route path="/services/:slug" element={<Suspense fallback={<PageLoaderFallback />}><ErrorBoundary><ServiceDetail /></ErrorBoundary></Suspense>} />
-                <Route path="/portfolio" element={<Suspense fallback={<PageLoaderFallback />}><ErrorBoundary><Portfolio /></ErrorBoundary></Suspense>} />
-                <Route path="/portfolio/:slug" element={<Suspense fallback={<PageLoaderFallback />}><ErrorBoundary><ProjectDetail /></ErrorBoundary></Suspense>} />
-                <Route path="/contact" element={<Suspense fallback={<PageLoaderFallback />}><ErrorBoundary><Contact /></ErrorBoundary></Suspense>} />
-                <Route path="/contact/success" element={<Suspense fallback={<PageLoaderFallback />}><ErrorBoundary><ContactSuccess /></ErrorBoundary></Suspense>} />
-                <Route path="/login" element={<Suspense fallback={<PageLoaderFallback />}><ErrorBoundary><Login /></ErrorBoundary></Suspense>} />
-                <Route path="/signup" element={<Suspense fallback={<PageLoaderFallback />}><ErrorBoundary><Signup /></ErrorBoundary></Suspense>} />
-                <Route path="/500" element={<Suspense fallback={<PageLoaderFallback />}><ErrorBoundary><ServerError /></ErrorBoundary></Suspense>} />
-                <Route path="/style-guide" element={<Suspense fallback={<PageLoaderFallback />}><ErrorBoundary><StyleGuide /></ErrorBoundary></Suspense>} />
-                <Route path="/privacy" element={<Suspense fallback={<PageLoaderFallback />}><ErrorBoundary><PrivacyPolicy /></ErrorBoundary></Suspense>} />
-                <Route path="/terms" element={<Suspense fallback={<PageLoaderFallback />}><ErrorBoundary><TermsOfService /></ErrorBoundary></Suspense>} />
-                <Route path="/cookies" element={<Suspense fallback={<PageLoaderFallback />}><ErrorBoundary><CookiesSettings /></ErrorBoundary></Suspense>} />
-                <Route path="/verification" element={<Suspense fallback={<PageLoaderFallback />}><ErrorBoundary><Verification /></ErrorBoundary></Suspense>} />
-                <Route path="/our-team" element={<Suspense fallback={<PageLoaderFallback />}><ErrorBoundary><Team /></ErrorBoundary></Suspense>} />
-                <Route path="/careers" element={<Suspense fallback={<PageLoaderFallback />}><ErrorBoundary><Careers /></ErrorBoundary></Suspense>} />
-                <Route path="/careers/:id" element={<Suspense fallback={<PageLoaderFallback />}><ErrorBoundary><JobDetail /></ErrorBoundary></Suspense>} />
-                <Route path="/careers/apply" element={<Suspense fallback={<PageLoaderFallback />}><ErrorBoundary><JobApplication /></ErrorBoundary></Suspense>} />
-                <Route path="/careers/apply/success" element={<Suspense fallback={<PageLoaderFallback />}><ErrorBoundary><JobApplicationSuccess /></ErrorBoundary></Suspense>} />
-                <Route path="/careers/privacy" element={<Suspense fallback={<PageLoaderFallback />}><ErrorBoundary><JobPrivacyPolicy /></ErrorBoundary></Suspense>} />
-                <Route path="/coming-soon" element={<Suspense fallback={<PageLoaderFallback />}><ErrorBoundary><UnderConstruction /></ErrorBoundary></Suspense>} />
-                <Route path="/maintenance" element={<Suspense fallback={<PageLoaderFallback />}><ErrorBoundary><Maintenance /></ErrorBoundary></Suspense>} />
-                <Route path="/skeleton" element={<Suspense fallback={<PageLoaderFallback />}><ErrorBoundary><SkeletonPage /></ErrorBoundary></Suspense>} />
-                <Route path="/loading" element={<Suspense fallback={<PageLoaderFallback />}><ErrorBoundary><LoadingPage /></ErrorBoundary></Suspense>} />
-                <Route path="/page-loader" element={<Suspense fallback={<PageLoaderFallback />}><ErrorBoundary><PageLoader /></ErrorBoundary></Suspense>} />
-                <Route path="/emails/signup-confirmation" element={<Suspense fallback={<PageLoaderFallback />}><SignupConfirmation /></Suspense>} />
-                <Route path="/emails/email-verification" element={<Suspense fallback={<PageLoaderFallback />}><EmailVerification /></Suspense>} />
-                <Route path="/emails/password-reset" element={<Suspense fallback={<PageLoaderFallback />}><PasswordReset /></Suspense>} />
-                <Route path="/emails/project-created" element={<Suspense fallback={<PageLoaderFallback />}><ProjectCreated /></Suspense>} />
-                <Route path="/emails/project-completed" element={<Suspense fallback={<PageLoaderFallback />}><ProjectCompleted /></Suspense>} />
-                <Route path="/emails/feedback-request" element={<Suspense fallback={<PageLoaderFallback />}><FeedbackRequest /></Suspense>} />
-                <Route path="/otp-verification" element={<Suspense fallback={<PageLoaderFallback />}><ErrorBoundary><OtpVerification /></ErrorBoundary></Suspense>} />
-                <Route path="/auth/callback" element={<Suspense fallback={<PageLoaderFallback />}><ErrorBoundary><OAuthCallback /></ErrorBoundary></Suspense>} />
-                <Route path="*" element={<Suspense fallback={<PageLoaderFallback />}><NotFound /></Suspense>} />
+                <Route path="/" element={<RouteWithBoundary component={Home} />} />
+                <Route path="/services" element={<RouteWithBoundary component={Services} />} />
+                <Route path="/services/:slug" element={<RouteWithBoundary component={ServiceDetail} />} />
+                <Route path="/portfolio" element={<RouteWithBoundary component={Portfolio} />} />
+                <Route path="/portfolio/:slug" element={<RouteWithBoundary component={ProjectDetail} />} />
+                <Route path="/contact" element={<RouteWithBoundary component={Contact} />} />
+                <Route path="/contact/success" element={<RouteWithBoundary component={ContactSuccess} />} />
+                <Route path="/login" element={<RouteWithBoundary component={Login} />} />
+                <Route path="/signup" element={<RouteWithBoundary component={Signup} />} />
+                <Route path="/500" element={<RouteWithBoundary component={ServerError} />} />
+                <Route path="/style-guide" element={<RouteWithBoundary component={StyleGuide} />} />
+                <Route path="/privacy" element={<RouteWithBoundary component={PrivacyPolicy} />} />
+                <Route path="/terms" element={<RouteWithBoundary component={TermsOfService} />} />
+                <Route path="/cookies" element={<RouteWithBoundary component={CookiesSettings} />} />
+                <Route path="/verification" element={<RouteWithBoundary component={Verification} />} />
+                <Route path="/our-team" element={<RouteWithBoundary component={Team} />} />
+                <Route path="/careers" element={<RouteWithBoundary component={Careers} />} />
+                <Route path="/careers/:id" element={<RouteWithBoundary component={JobDetail} />} />
+                <Route path="/careers/apply" element={<RouteWithBoundary component={JobApplication} />} />
+                <Route path="/careers/apply/success" element={<RouteWithBoundary component={JobApplicationSuccess} />} />
+                <Route path="/careers/privacy" element={<RouteWithBoundary component={JobPrivacyPolicy} />} />
+                <Route path="/coming-soon" element={<RouteWithBoundary component={UnderConstruction} />} />
+                <Route path="/maintenance" element={<RouteWithBoundary component={Maintenance} />} />
+                <Route path="/skeleton" element={<RouteWithBoundary component={SkeletonPage} />} />
+                <Route path="/loading" element={<RouteWithBoundary component={LoadingPage} />} />
+                <Route path="/page-loader" element={<RouteWithBoundary component={PageLoader} />} />
+                <Route path="/emails/signup-confirmation" element={<RouteWithBoundary component={SignupConfirmation} />} />
+                <Route path="/emails/email-verification" element={<RouteWithBoundary component={EmailVerification} />} />
+                <Route path="/emails/password-reset" element={<RouteWithBoundary component={PasswordReset} />} />
+                <Route path="/emails/project-created" element={<RouteWithBoundary component={ProjectCreated} />} />
+                <Route path="/emails/project-completed" element={<RouteWithBoundary component={ProjectCompleted} />} />
+                <Route path="/emails/feedback-request" element={<RouteWithBoundary component={FeedbackRequest} />} />
+                <Route path="/otp-verification" element={<RouteWithBoundary component={OtpVerification} />} />
+                <Route path="/auth/callback" element={<RouteWithBoundary component={OAuthCallback} />} />
+                <Route path="*" element={<RouteWithBoundary component={NotFound} />} />
               </Route>
 
               {/* Admin Routes */}
@@ -266,27 +266,27 @@ export default function App() {
                   </ErrorBoundary>
                 </ProtectedRoute>
               }>
-                <Route index element={<Suspense fallback={<PageLoaderFallback />}><DashboardHome /></Suspense>} />
-                <Route path="messages" element={<Suspense fallback={<PageLoaderFallback />}><Messages /></Suspense>} />
-                <Route path="projects" element={<Suspense fallback={<PageLoaderFallback />}><Projects /></Suspense>} />
-                <Route path="services" element={<Suspense fallback={<PageLoaderFallback />}><ServicesAdmin /></Suspense>} />
-                <Route path="categories" element={<Suspense fallback={<PageLoaderFallback />}><CategoriesAdmin /></Suspense>} />
-                <Route path="ai-tools" element={<Suspense fallback={<PageLoaderFallback />}><AITools /></Suspense>} />
-                <Route path="chatbot-manager" element={<Suspense fallback={<PageLoaderFallback />}><ChatbotManager /></Suspense>} />
-                <Route path="support" element={<Suspense fallback={<PageLoaderFallback />}><Support /></Suspense>} />
-                <Route path="notifications" element={<Suspense fallback={<PageLoaderFallback />}><Notifications /></Suspense>} />
-                <Route path="team" element={<Suspense fallback={<PageLoaderFallback />}><TeamManagement /></Suspense>} />
-                <Route path="clients" element={<Suspense fallback={<PageLoaderFallback />}><ClientManagement /></Suspense>} />
-                <Route path="client-requests" element={<Suspense fallback={<PageLoaderFallback />}><ClientProjectRequests /></Suspense>} />
-                <Route path="contacts" element={<Suspense fallback={<PageLoaderFallback />}><ContactManagement /></Suspense>} />
-                <Route path="jobs" element={<Suspense fallback={<PageLoaderFallback />}><JobManagement /></Suspense>} />
-                <Route path="job-applications" element={<Suspense fallback={<PageLoaderFallback />}><AdminJobApplications /></Suspense>} />
-                <Route path="database" element={<Suspense fallback={<PageLoaderFallback />}><DatabaseManager /></Suspense>} />
-                <Route path="announcements" element={<Suspense fallback={<PageLoaderFallback />}><AnnouncementManager /></Suspense>} />
-                <Route path="page-manager" element={<Suspense fallback={<PageLoaderFallback />}><PageManager /></Suspense>} />
-                <Route path="nav-footer" element={<Suspense fallback={<PageLoaderFallback />}><NavFooterManager /></Suspense>} />
-                <Route path="content-editor" element={<Suspense fallback={<PageLoaderFallback />}><ContentEditor /></Suspense>} />
-                <Route path="settings" element={<Suspense fallback={<PageLoaderFallback />}><Settings /></Suspense>} />
+                <Route index element={<RouteWithBoundary component={DashboardHome} />} />
+                <Route path="messages" element={<RouteWithBoundary component={Messages} />} />
+                <Route path="projects" element={<RouteWithBoundary component={Projects} />} />
+                <Route path="services" element={<RouteWithBoundary component={ServicesAdmin} />} />
+                <Route path="categories" element={<RouteWithBoundary component={CategoriesAdmin} />} />
+                <Route path="ai-tools" element={<RouteWithBoundary component={AITools} />} />
+                <Route path="chatbot-manager" element={<RouteWithBoundary component={ChatbotManager} />} />
+                <Route path="support" element={<RouteWithBoundary component={Support} />} />
+                <Route path="notifications" element={<RouteWithBoundary component={Notifications} />} />
+                <Route path="team" element={<RouteWithBoundary component={TeamManagement} />} />
+                <Route path="clients" element={<RouteWithBoundary component={ClientManagement} />} />
+                <Route path="client-requests" element={<RouteWithBoundary component={ClientProjectRequests} />} />
+                <Route path="contacts" element={<RouteWithBoundary component={ContactManagement} />} />
+                <Route path="jobs" element={<RouteWithBoundary component={JobManagement} />} />
+                <Route path="job-applications" element={<RouteWithBoundary component={AdminJobApplications} />} />
+                <Route path="database" element={<RouteWithBoundary component={DatabaseManager} />} />
+                <Route path="announcements" element={<RouteWithBoundary component={AnnouncementManager} />} />
+                <Route path="page-manager" element={<RouteWithBoundary component={PageManager} />} />
+                <Route path="nav-footer" element={<RouteWithBoundary component={NavFooterManager} />} />
+                <Route path="content-editor" element={<RouteWithBoundary component={ContentEditor} />} />
+                <Route path="settings" element={<RouteWithBoundary component={Settings} />} />
               </Route>
 
               {/* Team Dashboard Routes */}
@@ -299,20 +299,20 @@ export default function App() {
                   </ErrorBoundary>
                 </ProtectedRoute>
               }>
-                <Route index element={<Suspense fallback={<PageLoaderFallback />}><TeamDashboardHome /></Suspense>} />
-                <Route path="projects" element={<Suspense fallback={<PageLoaderFallback />}><TeamProjects /></Suspense>} />
-                <Route path="projects/:id" element={<Suspense fallback={<PageLoaderFallback />}><TeamProjectDetail /></Suspense>} />
-                <Route path="client-requests/:id" element={<Suspense fallback={<PageLoaderFallback />}><TeamClientRequestDetail /></Suspense>} />
-                <Route path="tasks" element={<Suspense fallback={<PageLoaderFallback />}><TeamTasks /></Suspense>} />
-                <Route path="reports" element={<Suspense fallback={<PageLoaderFallback />}><TeamReports /></Suspense>} />
-                <Route path="calendar" element={<Suspense fallback={<PageLoaderFallback />}><TeamCalendar /></Suspense>} />
-                <Route path="chat" element={<Suspense fallback={<PageLoaderFallback />}><TeamChat /></Suspense>} />
-                <Route path="resources" element={<Suspense fallback={<PageLoaderFallback />}><TeamResources /></Suspense>} />
-                <Route path="notifications" element={<Suspense fallback={<PageLoaderFallback />}><TeamNotifications /></Suspense>} />
-                <Route path="settings" element={<Suspense fallback={<PageLoaderFallback />}><TeamSettings /></Suspense>} />
-                <Route path="ai-assistant" element={<Suspense fallback={<PageLoaderFallback />}><TeamAIChat /></Suspense>} />
-                <Route path="support" element={<Suspense fallback={<PageLoaderFallback />}><TeamSupport /></Suspense>} />
-                <Route path="applied-jobs" element={<Suspense fallback={<PageLoaderFallback />}><TeamAppliedJobs /></Suspense>} />
+                <Route index element={<RouteWithBoundary component={TeamDashboardHome} />} />
+                <Route path="projects" element={<RouteWithBoundary component={TeamProjects} />} />
+                <Route path="projects/:id" element={<RouteWithBoundary component={TeamProjectDetail} />} />
+                <Route path="client-requests/:id" element={<RouteWithBoundary component={TeamClientRequestDetail} />} />
+                <Route path="tasks" element={<RouteWithBoundary component={TeamTasks} />} />
+                <Route path="reports" element={<RouteWithBoundary component={TeamReports} />} />
+                <Route path="calendar" element={<RouteWithBoundary component={TeamCalendar} />} />
+                <Route path="chat" element={<RouteWithBoundary component={TeamChat} />} />
+                <Route path="resources" element={<RouteWithBoundary component={TeamResources} />} />
+                <Route path="notifications" element={<RouteWithBoundary component={TeamNotifications} />} />
+                <Route path="settings" element={<RouteWithBoundary component={TeamSettings} />} />
+                <Route path="ai-assistant" element={<RouteWithBoundary component={TeamAIChat} />} />
+                <Route path="support" element={<RouteWithBoundary component={TeamSupport} />} />
+                <Route path="applied-jobs" element={<RouteWithBoundary component={TeamAppliedJobs} />} />
               </Route>
 
               {/* User Dashboard Routes */}
@@ -325,15 +325,15 @@ export default function App() {
                   </ErrorBoundary>
                 </ProtectedRoute>
               }>
-                <Route index element={<Suspense fallback={<PageLoaderFallback />}><UserDashboardHome /></Suspense>} />
-                <Route path="projects" element={<Suspense fallback={<PageLoaderFallback />}><UserProjects /></Suspense>} />
-                <Route path="messages" element={<Suspense fallback={<PageLoaderFallback />}><UserChat /></Suspense>} />
-                <Route path="ai-assistant" element={<Suspense fallback={<PageLoaderFallback />}><UserAIChat /></Suspense>} />
-                <Route path="applied-jobs" element={<Suspense fallback={<PageLoaderFallback />}><UserAppliedJobs /></Suspense>} />
-                <Route path="billing" element={<Suspense fallback={<PageLoaderFallback />}><UserBilling /></Suspense>} />
-                <Route path="profile" element={<Suspense fallback={<PageLoaderFallback />}><UserProfile /></Suspense>} />
-                <Route path="notifications" element={<Suspense fallback={<PageLoaderFallback />}><UserNotifications /></Suspense>} />
-                <Route path="support" element={<Suspense fallback={<PageLoaderFallback />}><UserSupport /></Suspense>} />
+                <Route index element={<RouteWithBoundary component={UserDashboardHome} />} />
+                <Route path="projects" element={<RouteWithBoundary component={UserProjects} />} />
+                <Route path="messages" element={<RouteWithBoundary component={UserChat} />} />
+                <Route path="ai-assistant" element={<RouteWithBoundary component={UserAIChat} />} />
+                <Route path="applied-jobs" element={<RouteWithBoundary component={UserAppliedJobs} />} />
+                <Route path="billing" element={<RouteWithBoundary component={UserBilling} />} />
+                <Route path="profile" element={<RouteWithBoundary component={UserProfile} />} />
+                <Route path="notifications" element={<RouteWithBoundary component={UserNotifications} />} />
+                <Route path="support" element={<RouteWithBoundary component={UserSupport} />} />
               </Route>
             </Routes>
           </BrowserRouter>
