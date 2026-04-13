@@ -13,11 +13,13 @@ import {
 import { userAuthenticated, authorizeRoles } from "../../middlewares/Auth.js";
 import { mutationLimiter } from "../../middlewares/rateLimiter.js";
 import { mongoIdParam, validate } from "../../middlewares/validate.js";
+import { setCacheHeaders } from "../../middlewares/cacheHeaders.js";
+import { cacheMiddleware } from "../../middlewares/redisCache.js";
 
 const router = express.Router();
 
 // Public route – portfolio page
-router.get("/portfolio", getPublicPortfolio);
+router.get("/portfolio", setCacheHeaders(300), cacheMiddleware(300), getPublicPortfolio);
 
 // Read routes – admin + team can access
 router.get("/", userAuthenticated, authorizeRoles("admin", "team"), getAllProjects);

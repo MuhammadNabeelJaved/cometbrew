@@ -3,6 +3,7 @@ import AppError from "../../utils/AppError.js";
 import { successResponse } from "../../utils/apiResponse.js";
 import Announcement from "../../models/usersModels/Announcement.model.js";
 import AnnouncementBar from "../../models/usersModels/AnnouncementBar.model.js";
+import { invalidateCache } from "../../middlewares/redisCache.js";
 
 // Singleton settings stored as a special doc (_meta: true)
 const SETTINGS_FILTER = { _meta: true };
@@ -44,6 +45,7 @@ export const updateSettings = asyncHandler(async (req, res) => {
     const doc = await Announcement.findOneAndUpdate(SETTINGS_FILTER, { $set: setFields }, { upsert: true, new: true });
     const io = req.app.get("io");
     if (io) io.of("/public").emit("cms:updated", { section: "announcements" });
+    invalidateCache('/announcements').catch(() => {});
     successResponse(res, "Settings updated", {
         tickerDuration:   doc.tickerDuration,
         scrollEnabled:    doc.scrollEnabled,
@@ -93,6 +95,7 @@ export const createAnnouncement = asyncHandler(async (req, res) => {
 
     const io = req.app.get("io");
     if (io) io.of("/public").emit("cms:updated", { section: "announcements" });
+    invalidateCache('/announcements').catch(() => {});
     successResponse(res, "Announcement created", item, 201);
 });
 
@@ -110,6 +113,7 @@ export const updateAnnouncement = asyncHandler(async (req, res) => {
 
     const io = req.app.get("io");
     if (io) io.of("/public").emit("cms:updated", { section: "announcements" });
+    invalidateCache('/announcements').catch(() => {});
     successResponse(res, "Announcement updated", item);
 });
 
@@ -119,5 +123,6 @@ export const deleteAnnouncement = asyncHandler(async (req, res) => {
     if (!item) throw new AppError("Announcement not found", 404);
     const io = req.app.get("io");
     if (io) io.of("/public").emit("cms:updated", { section: "announcements" });
+    invalidateCache('/announcements').catch(() => {});
     successResponse(res, "Announcement deleted", {});
 });

@@ -4,6 +4,7 @@ import { successResponse } from "../../utils/apiResponse.js";
 import validator from "validator";
 import Service from "../../models/usersModels/Services.model.js";
 import { autoSyncSection } from "../../utils/chatbotAutoSync.js";
+import { invalidateCache } from "../../middlewares/redisCache.js";
 
 // =========================
 // CREATE SERVICE
@@ -62,6 +63,7 @@ export const createService = asyncHandler(async (req, res) => {
         const io = req.app.get("io");
         if (io) io.of("/public").emit("cms:updated", { section: "services" });
         autoSyncSection('services').catch(() => {});
+        invalidateCache('/services').catch(() => {});
         successResponse(res, "Service created successfully", service, 201);
     } catch (error) {
         console.error("Error creating service:", error);
@@ -161,6 +163,7 @@ export const deleteService = asyncHandler(async (req, res) => {
         const io = req.app.get("io");
         if (io) io.of("/public").emit("cms:updated", { section: "services" });
         autoSyncSection('services').catch(() => {});
+        invalidateCache('/services').catch(() => {});
         successResponse(res, "Service deleted successfully", null);
     } catch (error) {
         console.error("Error in deleteService:", error);
@@ -195,6 +198,7 @@ export const updateService = asyncHandler(async (req, res) => {
         const io = req.app.get("io");
         if (io) io.of("/public").emit("cms:updated", { section: "services" });
         autoSyncSection('services').catch(() => {});
+        invalidateCache('/services').catch(() => {});
         successResponse(res, "Service updated successfully", updatedService);
     } catch (error) {
         console.error("Error in updateService:", error);
@@ -212,5 +216,6 @@ export const bulkDeleteServices = asyncHandler(async (req, res) => {
     const result = await Service.deleteMany({ _id: { $in: ids } });
     const io = req.app.get("io");
     if (io) io.of("/public").emit("cms:updated", { section: "services" });
+    invalidateCache('/services').catch(() => {});
     successResponse(res, `${result.deletedCount} service(s) deleted`, { deletedCount: result.deletedCount });
 });

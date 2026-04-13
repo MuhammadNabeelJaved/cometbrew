@@ -17,13 +17,15 @@ import {
     deleteBar,
 } from "../../controllers/usersControllers/announcementBar.controller.js";
 import { userAuthenticated, authorizeRoles } from "../../middlewares/Auth.js";
+import { setCacheHeaders } from "../../middlewares/cacheHeaders.js";
+import { cacheMiddleware } from "../../middlewares/redisCache.js";
 
 const router = express.Router();
 
 // ── Bar routes (must come BEFORE /:id to avoid conflicts) ──────────────────
 
 // Public
-router.get("/bars", getActiveBars);
+router.get("/bars", setCacheHeaders(60), cacheMiddleware(60), getActiveBars);
 
 // Authenticated (any logged-in user) — dashboard-visibility bars
 router.get("/bars/dashboard", userAuthenticated, getActiveDashboardBars);
@@ -37,8 +39,8 @@ router.delete("/bars/:id", userAuthenticated, authorizeRoles("admin"), deleteBar
 // ── Announcement routes ────────────────────────────────────────────────────
 
 // Public
-router.get("/", getActiveAnnouncements);
-router.get("/settings", getSettings);
+router.get("/", setCacheHeaders(60), cacheMiddleware(60), getActiveAnnouncements);
+router.get("/settings", setCacheHeaders(60), cacheMiddleware(60), getSettings);
 
 // Admin only
 router.get("/all", userAuthenticated, authorizeRoles("admin"), getAllAnnouncements);

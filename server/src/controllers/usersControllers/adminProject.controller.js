@@ -18,6 +18,7 @@ import AppError from "../../utils/AppError.js";
 import { successResponse } from "../../utils/apiResponse.js";
 import adminProject from "../../models/usersModels/AdminProject.model.js";
 import { autoSyncSection } from "../../utils/chatbotAutoSync.js";
+import { invalidateCache } from "../../middlewares/redisCache.js";
 import mongoose from "mongoose";
 import { escapeRegex } from "../../middlewares/sanitize.js";
 
@@ -83,6 +84,7 @@ export const createProject = asyncHandler(async (req, res, next) => {
         const io = req.app.get("io");
         if (io) io.of("/public").emit("cms:updated", { section: "projects" });
         autoSyncSection('projects').catch(() => {});
+        invalidateCache('/admin/projects').catch(() => {});
         return successResponse(res, 'Project created successfully', newProject, 201);
     } catch (error) {
         console.error(error);
@@ -210,6 +212,7 @@ export const updateProject = asyncHandler(async (req, res, next) => {
         const io = req.app.get("io");
         if (io) io.of("/public").emit("cms:updated", { section: "projects" });
         autoSyncSection('projects').catch(() => {});
+        invalidateCache('/admin/projects').catch(() => {});
         successResponse(res, 'Project updated successfully', project);
     } catch (error) {
         console.error(error);
@@ -239,6 +242,7 @@ export const deleteProject = asyncHandler(async (req, res, next) => {
         const io = req.app.get("io");
         if (io) io.of("/public").emit("cms:updated", { section: "projects" });
         autoSyncSection('projects').catch(() => {});
+        invalidateCache('/admin/projects').catch(() => {});
         successResponse(res, 'Project deleted successfully', null);
     } catch (error) {
         console.error(error);
@@ -298,6 +302,7 @@ export const updateProjectStatus = asyncHandler(async (req, res, next) => {
         const io = req.app.get("io");
         if (io) io.of("/public").emit("cms:updated", { section: "projects" });
         autoSyncSection('projects').catch(() => {});
+        invalidateCache('/admin/projects').catch(() => {});
         successResponse(res, 'Project status updated successfully', project);
     } catch (error) {
         console.error(error);
@@ -315,6 +320,7 @@ export const bulkDeleteProjects = asyncHandler(async (req, res) => {
     const result = await adminProject.deleteMany({ _id: { $in: ids } });
     const io = req.app.get("io");
     if (io) io.of("/public").emit("cms:updated", { section: "projects" });
+    invalidateCache('/admin/projects').catch(() => {});
     successResponse(res, `${result.deletedCount} project(s) deleted`, { deletedCount: result.deletedCount });
 });
 
@@ -328,5 +334,6 @@ export const bulkToggleVisibility = asyncHandler(async (req, res) => {
     await adminProject.updateMany({ _id: { $in: ids } }, { isPublic });
     const io = req.app.get("io");
     if (io) io.of("/public").emit("cms:updated", { section: "projects" });
+    invalidateCache('/admin/projects').catch(() => {});
     successResponse(res, `${ids.length} project(s) updated`, { count: ids.length });
 });

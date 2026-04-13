@@ -29,14 +29,16 @@ import {
     deleteTestimonial,
 } from "../../controllers/usersControllers/cms.controller.js";
 import { userAuthenticated, authorizeRoles } from "../../middlewares/Auth.js";
+import { setCacheHeaders } from "../../middlewares/cacheHeaders.js";
+import { cacheMiddleware } from "../../middlewares/redisCache.js";
 
 const router = express.Router();
 
 // Public – frontend reads all CMS content
-router.get("/", getCMS);
-router.get("/nav-links", getNavLinks);
-router.get("/footer-sections", getFooterSections);
-router.get("/footer-bottom", getFooterBottom);
+router.get("/", setCacheHeaders(600), cacheMiddleware(600), getCMS);
+router.get("/nav-links", setCacheHeaders(600), cacheMiddleware(600), getNavLinks);
+router.get("/footer-sections", setCacheHeaders(600), cacheMiddleware(600), getFooterSections);
+router.get("/footer-bottom", setCacheHeaders(600), cacheMiddleware(600), getFooterBottom);
 
 // Admin-only writes
 router.use(userAuthenticated, authorizeRoles("admin"));
