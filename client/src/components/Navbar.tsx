@@ -104,6 +104,7 @@ export function Navbar() {
       : [
           { name: t('nav.services'), path: '/services', openInNewTab: false },
           { name: t('nav.portfolio'), path: '/portfolio', openInNewTab: false },
+          { name: 'About', path: '/about', openInNewTab: false },
           { name: t('nav.contact'), path: '/contact', openInNewTab: false },
         ]
   ).filter(link => isVisible(link.path));

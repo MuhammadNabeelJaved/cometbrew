@@ -45,6 +45,7 @@ const TermsOfService         = lazy(() => import('./pages/public/TermsOfService'
 const CookiesSettings        = lazy(() => import('./pages/public/CookiesSettings'));
 const Verification           = lazy(() => import('./pages/public/Verification'));
 const Team                   = lazy(() => import('./pages/public/Team'));
+const About                  = lazy(() => import('./pages/public/About'));
 const JobApplication         = lazy(() => import('./pages/public/JobApplication'));
 const JobPrivacyPolicy       = lazy(() => import('./pages/public/JobPrivacyPolicy'));
 const JobApplicationSuccess  = lazy(() => import('./pages/public/JobApplicationSuccess'));
@@ -89,6 +90,7 @@ const PageManager           = lazy(() => import('./pages/admin/PageManager'));
 const AnnouncementManager   = lazy(() => import('./pages/admin/AnnouncementManager'));
 const PerformanceMonitor    = lazy(() => import('./pages/admin/PerformanceMonitor'));
 const NavFooterManager      = lazy(() => import('./pages/admin/NavFooterManager'));
+const ReviewsManagement     = lazy(() => import('./pages/admin/ReviewsManagement'));
 
 // ─── Team Pages ───────────────────────────────────────────────────────────────
 const TeamDashboardHome       = lazy(() => import('./pages/team/TeamDashboardHome'));
@@ -236,6 +238,7 @@ export default function App() {
                 <Route path="/cookies" element={<RouteWithBoundary component={CookiesSettings} />} />
                 <Route path="/verification" element={<RouteWithBoundary component={Verification} />} />
                 <Route path="/our-team" element={<RouteWithBoundary component={Team} />} />
+                <Route path="/about" element={<RouteWithBoundary component={About} />} />
                 <Route path="/careers" element={<RouteWithBoundary component={Careers} />} />
                 <Route path="/careers/:id" element={<RouteWithBoundary component={JobDetail} />} />
                 <Route path="/careers/apply" element={<RouteWithBoundary component={JobApplication} />} />
@@ -289,6 +292,7 @@ export default function App() {
                 <Route path="content-editor" element={<RouteWithBoundary component={ContentEditor} />} />
                 <Route path="settings" element={<RouteWithBoundary component={Settings} />} />
                 <Route path="performance" element={<RouteWithBoundary component={PerformanceMonitor} />} />
+                <Route path="reviews" element={<RouteWithBoundary component={ReviewsManagement} />} />
               </Route>
 
               {/* Team Dashboard Routes */}

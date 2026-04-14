@@ -19,7 +19,7 @@ import {
   LayoutDashboard, FolderKanban, Users, Mail, Briefcase, Database,
   Megaphone, LayoutList, PenTool, Bot, MessageSquare, MessageCircle, CreditCard,
   HelpCircle, Bell, Settings, Zap, CheckSquare, Calendar, Files,
-  BarChart2, Sparkles, User, Activity, Globe, FileText, Star, Package,
+  BarChart2, Sparkles, User, Activity, Globe, FileText, Star, Package, ThumbsUp,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -57,6 +57,7 @@ const ADMIN_ITEMS: SearchItem[] = [
   { id: 'a-chatbot-cost',   label: 'Chatbot Cost & Usage', description: 'API spend, token usage & pricing',   path: '/admin/chatbot-manager?tab=cost',     icon: MessageCircle,   group: 'Pages',   keywords: ['cost', 'usage', 'billing', 'tokens', 'api spend', 'pricing'] },
   { id: 'a-support',     label: 'Client Tickets',         description: 'Manage client support tickets',  path: '/admin/support',           icon: HelpCircle,      group: 'Pages',   keywords: ['help', 'tickets', 'issues', 'support', 'client'] },
   { id: 'a-notifs',      label: 'Notifications',          description: 'Notification centre',            path: '/admin/notifications',     icon: Bell,            group: 'Pages',   keywords: ['alerts', 'updates'] },
+  { id: 'a-reviews',     label: 'Reviews & Testimonials', description: 'Moderate client reviews',           path: '/admin/reviews',          icon: ThumbsUp,        group: 'Pages',   keywords: ['feedback', 'ratings', 'testimonials', 'approve', 'reject', 'stars'] },
   { id: 'a-performance', label: 'Performance Monitor',    description: 'Server health, cache & Web Vitals', path: '/admin/performance',      icon: Activity,        group: 'Pages',   keywords: ['health', 'uptime', 'memory', 'redis', 'cache', 'web vitals', 'metrics', 'monitoring', 'lcp', 'cls', 'ttfb'] },
   { id: 'a-settings',    label: 'Settings',               description: 'Account & system settings',      path: '/admin/settings',          icon: Settings,        group: 'Pages',   keywords: ['config', 'preferences', 'account'] },
   { id: 'a-content',     label: 'Content Editor',         description: 'Edit public website content',    path: '/admin/content-editor',    icon: PenTool,         group: 'Pages',   keywords: ['cms', 'copy', 'text', 'website'] },

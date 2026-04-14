@@ -9,7 +9,7 @@ import {
   Users, LayoutDashboard, MessageSquare, FolderKanban, Settings, LogOut, Zap,
   Bot, MessageCircle, HelpCircle, Bell, ChevronRight, Briefcase, PenTool,
   Database, Mail, LayoutList, Megaphone, X, PanelLeftClose, PanelLeftOpen,
-  GripVertical, Star, Activity,
+  GripVertical, Star, Activity, ThumbsUp,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -45,6 +45,7 @@ const DEFAULT_LINKS = [
   { name: 'Messages',         path: '/admin/messages',         icon: MessageSquare },
   { name: 'Client Tickets',   path: '/admin/support',          icon: HelpCircle },
   { name: 'Notifications',    path: '/admin/notifications',    icon: Bell },
+  { name: 'Reviews',          path: '/admin/reviews',          icon: ThumbsUp },
   { name: 'Performance',      path: '/admin/performance',      icon: Activity },
   { name: 'Settings',         path: '/admin/settings',         icon: Settings },
 ];
