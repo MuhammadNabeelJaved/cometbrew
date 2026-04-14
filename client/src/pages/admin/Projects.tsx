@@ -3,7 +3,7 @@
  * Full CRUD for portfolio projects with real API integration.
  */
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Search, Edit, Trash2, Eye, EyeOff, Globe, Lock, Loader2, X, Save, Image as ImageIcon, CheckSquare, Square } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Eye, EyeOff, Globe, Lock, Loader2, X, Save, Image as ImageIcon, CheckSquare, Square, Star } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
@@ -221,6 +221,16 @@ export default function Projects() {
     }
   };
 
+  const toggleFeaturedHome = async (project: any) => {
+    try {
+      await adminProjectsApi.toggleFeaturedHome(project._id);
+      showNotif('success', project.featuredOnHome ? 'Removed from home page' : 'Featured on home page');
+      loadProjects();
+    } catch (err: any) {
+      showNotif('error', 'Failed to update', err?.response?.data?.message);
+    }
+  };
+
   const filtered = projects.filter(p => {
     const matchSearch = !search || p.projectTitle?.toLowerCase().includes(search.toLowerCase()) || p.clientName?.toLowerCase().includes(search.toLowerCase());
     const matchStatus = filterStatus === 'All' || p.status === filterStatus;
@@ -259,6 +269,7 @@ export default function Projects() {
     public: projects.filter(p => p.isPublic).length,
     completed: projects.filter(p => p.status === 'Completed').length,
     inProgress: projects.filter(p => p.status === 'In Progress').length,
+    featuredHome: projects.filter(p => p.featuredOnHome).length,
   };
 
   const setField = (key: keyof ProjectForm, val: any) => setForm(f => ({ ...f, [key]: val }));
@@ -277,16 +288,20 @@ export default function Projects() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {[
           { label: 'Total Projects', value: stats.total },
           { label: 'Public (Live)', value: stats.public },
           { label: 'Completed', value: stats.completed },
           { label: 'In Progress', value: stats.inProgress },
+          { label: 'Featured on Home', value: stats.featuredHome, highlight: true },
         ].map(s => (
-          <Card key={s.label}>
+          <Card key={s.label} className={(s as any).highlight && stats.featuredHome > 0 ? 'border-amber-500/30 bg-amber-500/5' : ''}>
             <CardContent className="pt-6">
-              <div className="text-3xl font-bold">{s.value}</div>
+              <div className="flex items-center gap-2">
+                <div className="text-3xl font-bold">{s.value}</div>
+                {(s as any).highlight && <Star className="h-5 w-5 text-amber-500 fill-amber-500" />}
+              </div>
               <div className="text-sm text-muted-foreground mt-1">{s.label}</div>
             </CardContent>
           </Card>
@@ -334,6 +349,7 @@ export default function Projects() {
                   <TableHead>Category</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Visibility</TableHead>
+                  <TableHead className="text-center">Home</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -374,6 +390,15 @@ export default function Projects() {
                       <TableCell>
                         <button onClick={() => togglePublic(project)} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${project.isPublic ? 'bg-green-500/10 text-green-600 hover:bg-green-500/20' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}>
                           {project.isPublic ? <><Globe className="h-3 w-3" /> Public</> : <><Lock className="h-3 w-3" /> Hidden</>}
+                        </button>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <button
+                          onClick={() => toggleFeaturedHome(project)}
+                          title={project.featuredOnHome ? 'Remove from home page' : 'Feature on home page'}
+                          className={`inline-flex items-center justify-center h-8 w-8 rounded-full transition-colors ${project.featuredOnHome ? 'text-amber-500 bg-amber-500/10 hover:bg-amber-500/20' : 'text-muted-foreground/40 hover:text-amber-500 hover:bg-amber-500/10'}`}
+                        >
+                          <Star className={`h-4 w-4 ${project.featuredOnHome ? 'fill-amber-500' : ''}`} />
                         </button>
                       </TableCell>
                       <TableCell className="text-right">

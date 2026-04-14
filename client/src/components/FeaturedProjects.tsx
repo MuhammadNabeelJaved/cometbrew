@@ -20,7 +20,10 @@ export function FeaturedProjects() {
     adminProjectsApi.getPortfolio()
       .then(res => {
         const data = res.data.data.projects;
-        const list = Array.isArray(data) ? data.slice(0, 3) : [];
+        const all = Array.isArray(data) ? data : [];
+        // Show projects pinned to home page; if none pinned yet, fall back to first 3
+        const featured = all.filter((p: any) => p.featuredOnHome);
+        const list = featured.length > 0 ? featured : all.slice(0, 3);
         setProjects(list);
         if (list.length > 0) setActiveId(list[0]._id);
       })

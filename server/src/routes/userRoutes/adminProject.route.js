@@ -9,6 +9,7 @@ import {
     getPublicPortfolio,
     bulkDeleteProjects,
     bulkToggleVisibility,
+    toggleFeaturedHome,
 } from "../../controllers/usersControllers/adminProject.controller.js";
 import { userAuthenticated, authorizeRoles } from "../../middlewares/Auth.js";
 import { mutationLimiter } from "../../middlewares/rateLimiter.js";
@@ -33,6 +34,7 @@ router.patch("/bulk/visibility", userAuthenticated, authorizeRoles("admin"), mut
 router.post("/", userAuthenticated, authorizeRoles("admin"), mutationLimiter, createProject);
 router.put("/:id", userAuthenticated, authorizeRoles("admin"), mutationLimiter, validate([mongoIdParam("id")]), updateProject);
 router.patch("/:id/status", userAuthenticated, authorizeRoles("admin", "team"), mutationLimiter, validate([mongoIdParam("id")]), updateProjectStatus);
+router.patch("/:id/featured-home", userAuthenticated, authorizeRoles("admin"), mutationLimiter, validate([mongoIdParam("id")]), toggleFeaturedHome);
 router.delete("/:id", userAuthenticated, authorizeRoles("admin"), mutationLimiter, validate([mongoIdParam("id")]), deleteProject);
 
 export default router;

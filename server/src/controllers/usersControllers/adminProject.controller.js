@@ -325,6 +325,25 @@ export const bulkDeleteProjects = asyncHandler(async (req, res) => {
 });
 
 // =========================
+// TOGGLE FEATURED ON HOME
+// =========================
+export const toggleFeaturedHome = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) throw new AppError("Invalid project ID", 400);
+
+    const project = await adminProject.findById(id).select('featuredOnHome isPublic');
+    if (!project) throw new AppError("Project not found", 404);
+
+    project.featuredOnHome = !project.featuredOnHome;
+    await project.save();
+
+    const io = req.app.get("io");
+    if (io) io.of("/public").emit("cms:updated", { section: "projects" });
+    invalidateCache('/admin/projects').catch(() => {});
+    successResponse(res, project.featuredOnHome ? "Added to home page" : "Removed from home page", { featuredOnHome: project.featuredOnHome });
+});
+
+// =========================
 // BULK TOGGLE VISIBILITY
 // =========================
 export const bulkToggleVisibility = asyncHandler(async (req, res) => {

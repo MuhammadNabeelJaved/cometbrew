@@ -224,6 +224,13 @@ const projectSchema = new mongoose.Schema({
         type: Boolean,
         default: false,
         index: true
+    },
+
+    // Whether this project is pinned to the home page Featured Projects slider
+    featuredOnHome: {
+        type: Boolean,
+        default: false,
+        index: true
     }
 }, {
     timestamps: true, // Automatically adds createdAt and updatedAt
@@ -361,7 +368,7 @@ projectSchema.statics.getProjectStats = async function (userId) {
 /** Returns publicly visible, non-archived projects for the portfolio page. */
 projectSchema.statics.getPublicPortfolio = function (filter = {}) {
     return this.find({ isPublic: true, isArchived: false, ...filter })
-        .select('projectTitle clientName category status techStack projectGallery projectDescription completionPercentage tags startDate endDate clientFeedback')
+        .select('projectTitle clientName category status techStack projectGallery projectDescription completionPercentage tags startDate endDate clientFeedback featuredOnHome')
         .sort({ createdAt: -1 });
 };
 

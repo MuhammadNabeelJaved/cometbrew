@@ -10,4 +10,5 @@ export const adminProjectsApi = {
   delete: (id: string) => apiClient.delete(`/admin/projects/${id}`),
   bulkDelete: (ids: string[]) => apiClient.delete('/admin/projects/bulk', { data: { ids } }),
   bulkToggleVisibility: (ids: string[], isPublic: boolean) => apiClient.patch('/admin/projects/bulk/visibility', { ids, isPublic }),
+  toggleFeaturedHome: (id: string) => apiClient.patch(`/admin/projects/${id}/featured-home`),
 };
