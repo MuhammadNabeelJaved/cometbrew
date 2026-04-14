@@ -87,6 +87,7 @@ const DatabaseManager       = lazy(() => import('./pages/admin/DatabaseManager')
 const ClientProjectRequests = lazy(() => import('./pages/admin/ClientProjectRequests'));
 const PageManager           = lazy(() => import('./pages/admin/PageManager'));
 const AnnouncementManager   = lazy(() => import('./pages/admin/AnnouncementManager'));
+const PerformanceMonitor    = lazy(() => import('./pages/admin/PerformanceMonitor'));
 const NavFooterManager      = lazy(() => import('./pages/admin/NavFooterManager'));
 
 // ─── Team Pages ───────────────────────────────────────────────────────────────
@@ -287,6 +288,7 @@ export default function App() {
                 <Route path="nav-footer" element={<RouteWithBoundary component={NavFooterManager} />} />
                 <Route path="content-editor" element={<RouteWithBoundary component={ContentEditor} />} />
                 <Route path="settings" element={<RouteWithBoundary component={Settings} />} />
+                <Route path="performance" element={<RouteWithBoundary component={PerformanceMonitor} />} />
               </Route>
 
               {/* Team Dashboard Routes */}

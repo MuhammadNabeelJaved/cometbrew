@@ -24,6 +24,7 @@ import notFound from "./middlewares/notFound.js";
 import { globalLimiter } from "./middlewares/rateLimiter.js";
 import { sanitizeMongo, trimBody, preventHPP } from "./middlewares/sanitize.js";
 import { requestLogger } from "./middlewares/requestLogger.js";
+import { requestTracker } from "./middlewares/requestTracker.js";
 import { configurePassport } from "./config/passport.js";
 
 
@@ -90,6 +91,9 @@ app.use(globalLimiter);
 
 // ─── Request Logging ─────────────────────────────────────────────────────────
 app.use(requestLogger);
+
+// ─── Performance Tracking ────────────────────────────────────────────────────
+app.use(requestTracker);
 
 // ─── Request Parsing ────────────────────────────────────────────────────────
 app.use(cookieParser())

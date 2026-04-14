@@ -8,6 +8,7 @@
  * - Redis down → silently skip, app works normally
  */
 import { getRedisClient } from '../config/redis.js';
+import { recordCacheHit, recordCacheMiss } from '../utils/perfStats.js';
 
 /**
  * @param {number} ttlSeconds
@@ -25,6 +26,7 @@ export function cacheMiddleware(ttlSeconds) {
       const cached = await redis.get(key);
       if (cached) {
         res.set('X-Cache', 'HIT');
+        recordCacheHit();
         return res.json(JSON.parse(cached));
       }
     } catch {
@@ -36,6 +38,7 @@ export function cacheMiddleware(ttlSeconds) {
     const originalJson = res.json.bind(res);
     res.json = (body) => {
       res.set('X-Cache', 'MISS');
+      recordCacheMiss();
       if (res.statusCode >= 200 && res.statusCode < 300) {
         // Non-blocking — don't delay the response
         redis.setex(key, ttlSeconds, JSON.stringify(body)).catch(() => {});
