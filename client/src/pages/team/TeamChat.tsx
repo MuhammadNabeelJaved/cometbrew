@@ -9,7 +9,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
     Send, Search, Phone, Video, MoreVertical, Paperclip, Loader2,
-    MessageSquarePlus, CheckCheck, UserCircle, BellOff, Bell,
+    MessageSquarePlus, CheckCheck, Check, UserCircle, BellOff, Bell,
     Eraser, X, Mail, ShieldCheck, Calendar, ChevronRight, Users, Plus, Briefcase, ArrowDown,
     Pin, PinOff,
 } from 'lucide-react';
@@ -273,11 +273,21 @@ export default function TeamChat() {
             setMessages((prev) => prev.map((m) => m._id === messageId ? { ...m, isPinned, pinnedBy } : m));
         };
 
+        const onMessagesRead = ({ conversationId: cId, readBy: readerId }: { conversationId: string; readBy: string }) => {
+            if (!selectedConvo || cId !== selectedConvo._id) return;
+            setMessages((prev) =>
+                prev.map((m) =>
+                    m.readBy.includes(readerId) ? m : { ...m, readBy: [...m.readBy, readerId] }
+                )
+            );
+        };
+
         socket.on('chat:new_message', onNewMessage);
         socket.on('chat:typing_indicator', onTyping);
         socket.on('chat:message_deleted', onDeleted);
         socket.on('chat:reaction_updated', onReactionUpdated);
         socket.on('chat:message_pinned', onMessagePinned);
+        socket.on('chat:messages_read', onMessagesRead);
 
         return () => {
             socket.off('chat:new_message', onNewMessage);
@@ -285,8 +295,9 @@ export default function TeamChat() {
             socket.off('chat:message_deleted', onDeleted);
             socket.off('chat:reaction_updated', onReactionUpdated);
             socket.off('chat:message_pinned', onMessagePinned);
+            socket.off('chat:messages_read', onMessagesRead);
         };
-    }, [socket]);
+    }, [socket, selectedConvo?._id]);
 
     // ── Auto-scroll (skip when navigating to specific message) ───────────────
     useEffect(() => {
@@ -885,7 +896,13 @@ export default function TeamChat() {
                                                     )}
                                                     <div className={`flex items-center justify-end gap-1 mt-1 text-[10px] ${isMe ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
                                                         <span>{formatTime(msg.createdAt)}</span>
-                                                        {isMe && <CheckCheck className="h-3 w-3" />}
+                                                        {isMe && (() => {
+                                                            const otherId = otherParticipant?._id;
+                                                            const seen = otherId && msg.readBy.includes(otherId);
+                                                            return seen
+                                                                ? <CheckCheck className="h-3 w-3 text-blue-400" title="Seen" />
+                                                                : <Check className="h-3 w-3 opacity-60" title="Sent" />;
+                                                        })()}
                                                     </div>
                                                 </div>
                                             </SwipeableMessage>
