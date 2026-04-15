@@ -87,6 +87,7 @@ export default function TeamChat() {
     // ── Refs ─────────────────────────────────────────────────────────────────
     const messagesContainerRef = useRef<HTMLDivElement>(null);
     const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const receiverTypingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const scrolledToMsgRef = useRef<string | null>(null);
     const selectedConvoRef = useRef<Conversation | null>(null);
@@ -156,6 +157,9 @@ export default function TeamChat() {
     const selectConversation = async (convo: Conversation) => {
         selectedConvoRef.current = convo; // sync immediately so socket handler is correct
         setSelectedConvo(convo);
+        setIsTyping(false);
+        setTypingUser('');
+        if (receiverTypingTimeoutRef.current) clearTimeout(receiverTypingTimeoutRef.current);
         setShowProfile(false);
         setConvoUnread(prev => ({ ...prev, [convo._id]: 0 }));
         setMessages([]);
@@ -258,6 +262,13 @@ export default function TeamChat() {
         const onTyping = ({ userName, isTyping: typing }: { userId: string; userName: string; isTyping: boolean }) => {
             setTypingUser(typing ? userName : '');
             setIsTyping(typing);
+            if (receiverTypingTimeoutRef.current) clearTimeout(receiverTypingTimeoutRef.current);
+            if (typing) {
+                receiverTypingTimeoutRef.current = setTimeout(() => {
+                    setIsTyping(false);
+                    setTypingUser('');
+                }, 3000);
+            }
         };
 
         const onDeleted = ({ messageId }: { messageId: string }) => {
@@ -917,21 +928,30 @@ export default function TeamChat() {
                             );
                         })
                     )}
-                    {isTyping && (
-                        <div className="flex items-end gap-2 mt-2">
-                            <div className="w-8 h-8 shrink-0 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center text-white text-xs font-bold">
-                                {otherParticipant?.name?.charAt(0) ?? 'T'}
-                            </div>
-                            <div className="bg-card border border-border/50 rounded-2xl rounded-tl-sm px-4 py-2.5 shadow-sm">
-                                <div className="flex gap-1 items-center">
-                                    <span className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce [animation-delay:0ms]" />
-                                    <span className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce [animation-delay:150ms]" />
-                                    <span className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce [animation-delay:300ms]" />
+                    <AnimatePresence>
+                        {isTyping && (
+                            <motion.div
+                                key="typing-indicator"
+                                initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                                transition={{ duration: 0.18 }}
+                                className="flex items-end gap-2 mt-2"
+                            >
+                                <div className="w-8 h-8 shrink-0 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center text-white text-xs font-bold">
+                                    {otherParticipant?.name?.charAt(0) ?? 'T'}
                                 </div>
-                                <span className="text-[10px] text-muted-foreground mt-0.5 block">{typingUser} is typing</span>
-                            </div>
-                        </div>
-                    )}
+                                <div className="bg-card border border-border/50 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
+                                    <div className="flex gap-1 items-center h-4">
+                                        <span className="w-2 h-2 bg-primary/60 rounded-full animate-bounce [animation-delay:0ms]" />
+                                        <span className="w-2 h-2 bg-primary/60 rounded-full animate-bounce [animation-delay:160ms]" />
+                                        <span className="w-2 h-2 bg-primary/60 rounded-full animate-bounce [animation-delay:320ms]" />
+                                    </div>
+                                    <span className="text-[10px] text-muted-foreground mt-1 block">{typingUser} is typing…</span>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
                 {/* Scroll to bottom button */}
                 <AnimatePresence>
