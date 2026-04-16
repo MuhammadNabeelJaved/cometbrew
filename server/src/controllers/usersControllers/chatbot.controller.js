@@ -46,6 +46,7 @@ import User                 from '../../models/usersModels/User.model.js';
 // Models for per-user and per-team context
 import Project              from '../../models/usersModels/Project.model.js';
 import JobApplication       from '../../models/usersModels/JobApplication.model.js';
+import LiveChatSession      from '../../models/usersModels/LiveChatSession.model.js';
 // ── RAG / vector services ─────────────────────────────────────────────────────
 import { retrieveKnowledge, buildKnowledgeContext, embedAndSyncEntry } from '../../services/ragService.js';
 import { deleteByMongoId, getVectorStats, isVectorDBEnabled, clearVectorStore } from '../../services/vectorService.js';
@@ -560,6 +561,20 @@ export const chat = asyncHandler(async (req, res) => {
     sendEvent({ type: 'done' });
     res.end();
   };
+
+  // ── HANDOFF CHECK — skip AI entirely if visitor is in a live chat ─────────────
+  const activeSession = await LiveChatSession.findOne({
+    sessionId,
+    status: { $in: ['waiting', 'active'] },
+  }).lean();
+  if (activeSession) {
+    if (activeSession.status === 'waiting') {
+      sendInstant('⏳ You\'re in the queue — an agent will join you shortly. I\'ve stepped aside!');
+    } else {
+      sendInstant('You\'re connected with a live agent. I\'ll let them handle this!');
+    }
+    return;
+  }
 
   // ── LAYER 1: Greeting detection (zero cost) ───────────────────────────────
   if (_isGreeting(userMsg)) {
