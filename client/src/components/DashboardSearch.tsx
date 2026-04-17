@@ -19,7 +19,7 @@ import {
   LayoutDashboard, FolderKanban, Users, Mail, Briefcase, Database,
   Megaphone, LayoutList, PenTool, Bot, MessageSquare, MessageCircle, CreditCard,
   HelpCircle, Bell, Settings, Zap, CheckSquare, Calendar, Files,
-  BarChart2, Sparkles, User, Activity, Globe, FileText, Star, Package, ThumbsUp,
+  BarChart2, Sparkles, User, Activity, Globe, FileText, Star, Package, ThumbsUp, Clock,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -55,6 +55,9 @@ const ADMIN_ITEMS: SearchItem[] = [
   { id: 'a-chatbot-userbot', label: 'User Bot Settings', description: 'Manage client dashboard AI assistant', path: '/admin/chatbot-manager?tab=user-bot', icon: MessageCircle,   group: 'Pages',   keywords: ['user chatbot', 'client assistant', 'user dashboard bot'] },
   { id: 'a-chatbot-teambot', label: 'Team Bot Settings', description: 'Manage team dashboard AI assistant',   path: '/admin/chatbot-manager?tab=team-bot', icon: MessageCircle,   group: 'Pages',   keywords: ['team chatbot', 'team assistant', 'team dashboard bot'] },
   { id: 'a-chatbot-cost',   label: 'Chatbot Cost & Usage', description: 'API spend, token usage & pricing',   path: '/admin/chatbot-manager?tab=cost',     icon: MessageCircle,   group: 'Pages',   keywords: ['cost', 'usage', 'billing', 'tokens', 'api spend', 'pricing'] },
+  { id: 'a-live-chat',         label: 'Live Chat',          description: 'Manage live visitor chat sessions',     path: '/admin/live-chat',             icon: MessageCircle, group: 'Pages',   keywords: ['visitor', 'handoff', 'human', 'agent', 'live'] },
+  { id: 'a-live-chat-waiting', label: 'Waiting Sessions',   description: 'View visitors waiting for an agent',   path: '/admin/live-chat?tab=waiting', icon: Clock,        group: 'Pages',   keywords: ['queue', 'pending'] },
+  { id: 'a-live-chat-closed',  label: 'Chat History',       description: 'View closed live chat transcripts',    path: '/admin/live-chat?tab=closed',  icon: MessageSquare, group: 'Pages',   keywords: ['transcript', 'logs', 'history', 'closed'] },
   { id: 'a-support',     label: 'Client Tickets',         description: 'Manage client support tickets',  path: '/admin/support',           icon: HelpCircle,      group: 'Pages',   keywords: ['help', 'tickets', 'issues', 'support', 'client'] },
   { id: 'a-notifs',      label: 'Notifications',          description: 'Notification centre',            path: '/admin/notifications',     icon: Bell,            group: 'Pages',   keywords: ['alerts', 'updates'] },
   { id: 'a-reviews',     label: 'Reviews & Testimonials', description: 'Moderate client reviews',           path: '/admin/reviews',          icon: ThumbsUp,        group: 'Pages',   keywords: ['feedback', 'ratings', 'testimonials', 'approve', 'reject', 'stars'] },

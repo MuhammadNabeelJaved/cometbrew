@@ -3,7 +3,7 @@
  * Supports collapse/expand toggle (persisted in localStorage).
  * Supports drag-to-reorder and pin-to-top per item (persisted in localStorage).
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Users, LayoutDashboard, MessageSquare, FolderKanban, Settings, LogOut, Zap,
@@ -42,6 +42,7 @@ const DEFAULT_LINKS = [
   { name: 'Content Editor',   path: '/admin/content-editor',   icon: PenTool },
   { name: 'AI Tools',         path: '/admin/ai-tools',         icon: Bot },
   { name: 'Chatbot Manager',  path: '/admin/chatbot-manager',  icon: MessageCircle },
+  { name: 'Live Chat',        path: '/admin/live-chat',        icon: MessageCircle },
   { name: 'Messages',         path: '/admin/messages',         icon: MessageSquare },
   { name: 'Client Tickets',   path: '/admin/support',          icon: HelpCircle },
   { name: 'Notifications',    path: '/admin/notifications',    icon: Bell },
@@ -57,6 +58,14 @@ export function Sidebar({ isOpen = false, onClose, collapsed = false, onToggleCo
   const { chatUnreadCount } = useNotifications();
   const { getOrderedLinks, isPinned, togglePin, handleDragStart, handleDrop } = useSidebarPreferences('admin', DEFAULT_LINKS);
   const [dragOverPath, setDragOverPath] = useState<string | null>(null);
+  const [waitingCount, setWaitingCount] = useState(0);
+
+  useEffect(() => {
+    fetch('/api/v1/live-chat/stats', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => { if (d.success) setWaitingCount(d.data.waiting); })
+      .catch(() => {});
+  }, []);
 
   const handleLogout = async () => {
     await logout();
@@ -132,6 +141,11 @@ export function Sidebar({ isOpen = false, onClose, collapsed = false, onToggleCo
                   {link.path === '/admin/messages' && chatUnreadCount > 0 && (
                     <span className="ml-auto h-5 min-w-[20px] px-1 rounded-full bg-primary text-[10px] text-primary-foreground font-bold flex items-center justify-center">
                       {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
+                    </span>
+                  )}
+                  {link.path === '/admin/live-chat' && waitingCount > 0 && (
+                    <span className="ml-auto bg-yellow-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center flex-shrink-0">
+                      {waitingCount > 9 ? '9+' : waitingCount}
                     </span>
                   )}
                   {isActive && !pinned_ && <ChevronRight className="h-4 w-4 opacity-40 ml-auto" />}

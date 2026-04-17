@@ -91,6 +91,7 @@ const AnnouncementManager   = lazy(() => import('./pages/admin/AnnouncementManag
 const PerformanceMonitor    = lazy(() => import('./pages/admin/PerformanceMonitor'));
 const NavFooterManager      = lazy(() => import('./pages/admin/NavFooterManager'));
 const ReviewsManagement     = lazy(() => import('./pages/admin/ReviewsManagement'));
+const LiveChat              = lazy(() => import('./pages/admin/LiveChat'));
 
 // ─── Team Pages ───────────────────────────────────────────────────────────────
 const TeamDashboardHome       = lazy(() => import('./pages/team/TeamDashboardHome'));
@@ -294,6 +295,7 @@ export default function App() {
                 <Route path="settings" element={<RouteWithBoundary component={Settings} />} />
                 <Route path="performance" element={<RouteWithBoundary component={PerformanceMonitor} />} />
                 <Route path="reviews" element={<RouteWithBoundary component={ReviewsManagement} />} />
+                <Route path="live-chat" element={<RouteWithBoundary component={LiveChat} />} />
               </Route>
 
               {/* Team Dashboard Routes */}
