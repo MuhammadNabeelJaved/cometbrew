@@ -12,10 +12,14 @@ import { MapPin, Phone, Mail, Clock, Send } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { useContent } from '../../contexts/ContentContext';
+import { useTheme } from '../../contexts/ThemeContext';
+import { Map, MapMarker, MarkerContent, MarkerPopup, MapControls } from '../../components/ui/map';
 import { contactsApi } from '../../api/contacts.api';
 
 export default function Contact() {
   const { contactInfo } = useContent();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
   const formRef = useRef<HTMLFormElement>(null);
@@ -147,28 +151,83 @@ export default function Contact() {
         </motion.div>
       </div>
 
-      {/* ── Map ── */}
-      {contactInfo.mapEmbedUrl && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5 }}
-          className="rounded-2xl overflow-hidden border border-border/50 shadow-sm w-full"
-          style={{ height: '400px' }}
-        >
-          <iframe
-            src={contactInfo.mapEmbedUrl}
-            width="100%"
-            height="100%"
-            style={{ border: 0 }}
-            allowFullScreen
-            loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
-            title="Our Location"
-          />
-        </motion.div>
-      )}
+      {/* ── Maps ── */}
+      {(() => {
+        const provider = contactInfo.mapProvider || 'google';
+
+        // Google Maps iframe
+        const rawEmbed = contactInfo.mapEmbedUrl?.trim() || '';
+        const srcMatch = rawEmbed.match(/src=["']([^"']+)["']/);
+        const googleSrc = srcMatch ? srcMatch[1] : rawEmbed;
+        const hasGoogle = googleSrc.includes('google.com/maps/embed');
+
+        // MapCN
+        const hasMapcn = contactInfo.mapLat !== null && contactInfo.mapLng !== null;
+
+        const showGoogle = hasGoogle && (provider === 'google' || provider === 'both');
+        const showMapcn  = hasMapcn  && (provider === 'mapcn'  || provider === 'both');
+
+        if (!showGoogle && !showMapcn) return null;
+
+        return (
+          <div className="space-y-6">
+            {showGoogle && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5 }}
+                className="rounded-2xl overflow-hidden border border-border/50 shadow-sm w-full"
+                style={{ height: '400px' }}
+              >
+                <iframe
+                  src={googleSrc}
+                  width="100%"
+                  height="100%"
+                  style={{
+                    border: 0,
+                    filter: isDark ? 'invert(90%) hue-rotate(180deg)' : 'none',
+                    transition: 'filter 0.3s ease',
+                  }}
+                  allowFullScreen
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  title="Our Location"
+                />
+              </motion.div>
+            )}
+
+            {showMapcn && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: showGoogle ? 0.1 : 0 }}
+                className="rounded-2xl overflow-hidden border border-border/50 shadow-sm w-full"
+                style={{ height: '400px' }}
+              >
+                <Map
+                  center={[contactInfo.mapLng!, contactInfo.mapLat!]}
+                  zoom={contactInfo.mapZoom || 13}
+                >
+                  <MapControls />
+                  <MapMarker
+                    longitude={contactInfo.mapLng!}
+                    latitude={contactInfo.mapLat!}
+                  >
+                    <MarkerContent />
+                    {contactInfo.mapMarkerLabel && (
+                      <MarkerPopup>
+                        <div className="px-2 py-1 text-sm font-medium">{contactInfo.mapMarkerLabel}</div>
+                      </MarkerPopup>
+                    )}
+                  </MapMarker>
+                </Map>
+              </motion.div>
+            )}
+          </div>
+        );
+      })()}
 
       <FAQSection title="Common Questions" description="Quick answers before you reach out." items={faqItems} />
     </div>

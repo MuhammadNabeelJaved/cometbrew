@@ -5,62 +5,78 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="x-apple-disable-message-reformatting">
-  <title>Verify Your Email — Nabeel Agency</title>
+  <meta name="color-scheme" content="light">
+  <meta name="supported-color-schemes" content="light">
+  <title>Verify Your Email — Leveez Agency</title>
   <!--[if mso]>
   <noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
   <![endif]-->
   <style>
+    :root { color-scheme: light; }
     * { box-sizing: border-box; }
     body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
     table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
     img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
-    body { margin: 0 !important; padding: 0 !important; background-color: #000000; }
+    body { margin: 0 !important; padding: 0 !important; background-color: #f0edf8 !important; }
+
+    @media (prefers-color-scheme: dark) {
+      body { background-color: #f0edf8 !important; }
+      .outer-bg { background-color: #f0edf8 !important; }
+      .card { background-color: #ffffff !important; border-color: #e2d9f3 !important; }
+      .logo-name { color: #1a1033 !important; }
+      .logo-sub { color: #7c3aed !important; }
+      .badge-text { color: #7c3aed !important; }
+      .heading { color: #1a1033 !important; }
+      .subtext { color: #6b7280 !important; }
+      .otp-box { background-color: #f5f3ff !important; border-color: #e2d9f3 !important; }
+      .otp-label { color: #9ca3af !important; }
+      .digit-box { background: #ede9fe !important; border-color: #c4b5fd !important; color: #7c3aed !important; }
+      .expiry-text { color: #9ca3af !important; }
+      .security-box { background-color: #fffbeb !important; border-color: #fde68a !important; }
+      .security-text { color: #92400e !important; }
+      .divider { background-color: #e5e7eb !important; }
+      .footer-text { color: #9ca3af !important; }
+    }
 
     @media only screen and (max-width: 600px) {
       .email-card { width: 100% !important; border-radius: 0 !important; }
       .pad { padding: 32px 20px !important; }
       .pad-sm { padding: 24px 20px !important; }
       .h1 { font-size: 26px !important; }
-      .h2 { font-size: 19px !important; }
       .digit-cell { padding: 0 3px !important; }
-      .digit { width: 44px !important; height: 54px !important; line-height: 54px !important; font-size: 24px !important; border-radius: 10px !important; }
+      .digit-box { width: 44px !important; height: 54px !important; line-height: 54px !important; font-size: 22px !important; border-radius: 10px !important; }
     }
   </style>
 </head>
-<body style="margin:0;padding:0;background-color:#000000;">
+<body style="margin:0;padding:0;background-color:#f0edf8;">
 
-  <!-- Preview text -->
   <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">Your verification code: {{CODE}} — expires in 10 minutes.&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;</div>
 
-  <!-- Outer wrapper -->
-  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#000000;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" class="outer-bg" style="background-color:#f0edf8;">
     <tr>
       <td align="center" style="padding:48px 16px;">
 
-        <!-- Decorative orb top-right (background) -->
         <!-- Card -->
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="560" class="email-card" style="background-color:rgba(255,255,255,0.03);border-radius:24px;border:1px solid rgba(255,255,255,0.08);overflow:hidden;position:relative;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="560" class="email-card card" style="background-color:#ffffff;border-radius:24px;border:1px solid #e2d9f3;overflow:hidden;">
 
-          <!-- Top gradient bar — matches hero title gradient: primary → purple → blue -->
+          <!-- Gradient top bar -->
           <tr>
-            <td style="background:linear-gradient(90deg,#7c3aed,#a855f7,#3b82f6);height:3px;padding:0;line-height:3px;font-size:3px;">&nbsp;</td>
+            <td style="background:linear-gradient(90deg,#7c3aed,#a855f7,#3b82f6);height:4px;padding:0;line-height:4px;font-size:4px;">&nbsp;</td>
           </tr>
 
           <!-- Header -->
           <tr>
-            <td align="center" class="pad" style="padding:44px 48px 36px 48px;background:linear-gradient(180deg,rgba(124,58,237,0.06) 0%,transparent 100%);">
-              <!-- Logo: matches Navbar — "N" initial + "NABEEL AGENCY" -->
+            <td align="center" class="pad" style="padding:40px 48px 32px 48px;background:linear-gradient(180deg,#f5f3ff 0%,#ffffff 100%);">
               <table role="presentation" cellspacing="0" cellpadding="0" border="0">
                 <tr>
                   <td align="center" style="padding-right:12px;vertical-align:middle;">
-                    <!-- Logo mark: gradient bg, rounded-xl, font-black -->
                     <div style="width:44px;height:44px;background:linear-gradient(135deg,#7c3aed,#3b82f6);border-radius:12px;display:inline-block;text-align:center;line-height:44px;">
                       <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:22px;font-weight:900;color:#ffffff;line-height:44px;letter-spacing:-1px;">N</span>
                     </div>
                   </td>
                   <td align="left" style="vertical-align:middle;">
-                    <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:20px;font-weight:900;color:#ffffff;letter-spacing:-0.04em;display:block;line-height:1;">NABEEL</span>
-                    <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:11px;font-weight:500;color:rgba(255,255,255,0.4);letter-spacing:0.12em;text-transform:uppercase;display:block;margin-top:2px;">AGENCY</span>
+                    <span class="logo-name" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:20px;font-weight:900;color:#1a1033;letter-spacing:-0.04em;display:block;line-height:1;">NABEEL</span>
+                    <span class="logo-sub" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:11px;font-weight:600;color:#7c3aed;letter-spacing:0.14em;text-transform:uppercase;display:block;margin-top:2px;">AGENCY</span>
                   </td>
                 </tr>
               </table>
@@ -68,23 +84,22 @@
           </tr>
 
           <!-- Divider -->
-          <tr><td style="padding:0 48px;"><div style="height:1px;background:rgba(255,255,255,0.06);"></div></td></tr>
+          <tr><td style="padding:0 48px;"><div class="divider" style="height:1px;background:#e5e7eb;"></div></td></tr>
 
           <!-- Body -->
           <tr>
-            <td class="pad" style="padding:40px 48px 0 48px;">
-              <!-- Status badge — matches hero "Available for work" badge -->
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-bottom:24px;">
+            <td class="pad" style="padding:36px 48px 0 48px;">
+              <!-- Badge -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-bottom:20px;">
                 <tr>
-                  <td style="background:rgba(124,58,237,0.12);border:1px solid rgba(124,58,237,0.25);border-radius:50px;padding:6px 14px;">
+                  <td style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:50px;padding:6px 14px;">
                     <table role="presentation" cellspacing="0" cellpadding="0" border="0">
                       <tr>
                         <td style="padding-right:7px;vertical-align:middle;">
-                          <!-- Pulsing green dot -->
                           <div style="width:8px;height:8px;background:#22c55e;border-radius:50%;display:inline-block;"></div>
                         </td>
                         <td style="vertical-align:middle;">
-                          <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12px;font-weight:500;color:rgba(255,255,255,0.7);letter-spacing:0.02em;">Email Verification</span>
+                          <span class="badge-text" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12px;font-weight:600;color:#7c3aed;letter-spacing:0.02em;">Email Verification</span>
                         </td>
                       </tr>
                     </table>
@@ -92,54 +107,51 @@
                 </tr>
               </table>
 
-              <!-- Heading — tight tracking like hero title -->
-              <h1 class="h1" style="margin:0 0 12px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:32px;font-weight:700;color:#ffffff;letter-spacing:-0.03em;line-height:1.15;">
+              <h1 class="h1 heading" style="margin:0 0 12px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:30px;font-weight:700;color:#1a1033;letter-spacing:-0.03em;line-height:1.15;">
                 Hello, {{NAME}} 👋
               </h1>
-              <p class="h2" style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.7;color:rgba(255,255,255,0.5);font-weight:400;">
-                Enter this one-time code to verify your Nabeel Agency account. The code expires in&nbsp;<strong style="color:rgba(255,255,255,0.75);">10 minutes</strong>.
+              <p class="subtext" style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.7;color:#6b7280;font-weight:400;">
+                Enter this one-time code to verify your Nabeel Agency account. The code expires in <strong style="color:#374151;">10 minutes</strong>.
               </p>
             </td>
           </tr>
 
-          <!-- OTP Box — glassmorphic card style -->
+          <!-- OTP Box -->
           <tr>
-            <td class="pad-sm" style="padding:28px 48px 0 48px;">
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:20px;">
+            <td class="pad-sm" style="padding:24px 48px 0 48px;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" class="otp-box" style="background:#f5f3ff;border:1px solid #e2d9f3;border-radius:20px;">
                 <tr>
-                  <td align="center" style="padding:36px 24px 32px 24px;">
-                    <p style="margin:0 0 24px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:11px;font-weight:600;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:0.14em;">Your one-time code</p>
+                  <td align="center" style="padding:32px 24px 28px 24px;">
+                    <p class="otp-label" style="margin:0 0 20px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.14em;">Your one-time code</p>
 
                     <!-- Digit boxes -->
                     <table role="presentation" cellspacing="0" cellpadding="0" border="0">
                       <tr>
                         <td class="digit-cell" style="padding:0 5px;">
-                          <div class="digit" style="display:inline-block;width:56px;height:64px;line-height:64px;text-align:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,'Courier New',monospace;font-size:28px;font-weight:800;color:#ffffff;background:linear-gradient(135deg,rgba(124,58,237,0.3),rgba(59,130,246,0.2));border:1px solid rgba(124,58,237,0.35);border-radius:14px;letter-spacing:0;">{{D1}}</div>
+                          <div class="digit-box" style="display:inline-block;width:54px;height:62px;line-height:62px;text-align:center;font-family:'Courier New',Courier,monospace;font-size:26px;font-weight:800;color:#7c3aed;background:#ede9fe;border:2px solid #c4b5fd;border-radius:14px;">{{D1}}</div>
                         </td>
                         <td class="digit-cell" style="padding:0 5px;">
-                          <div class="digit" style="display:inline-block;width:56px;height:64px;line-height:64px;text-align:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,'Courier New',monospace;font-size:28px;font-weight:800;color:#ffffff;background:linear-gradient(135deg,rgba(124,58,237,0.3),rgba(59,130,246,0.2));border:1px solid rgba(124,58,237,0.35);border-radius:14px;letter-spacing:0;">{{D2}}</div>
+                          <div class="digit-box" style="display:inline-block;width:54px;height:62px;line-height:62px;text-align:center;font-family:'Courier New',Courier,monospace;font-size:26px;font-weight:800;color:#7c3aed;background:#ede9fe;border:2px solid #c4b5fd;border-radius:14px;">{{D2}}</div>
                         </td>
                         <td class="digit-cell" style="padding:0 5px;">
-                          <div class="digit" style="display:inline-block;width:56px;height:64px;line-height:64px;text-align:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,'Courier New',monospace;font-size:28px;font-weight:800;color:#ffffff;background:linear-gradient(135deg,rgba(124,58,237,0.3),rgba(59,130,246,0.2));border:1px solid rgba(124,58,237,0.35);border-radius:14px;letter-spacing:0;">{{D3}}</div>
+                          <div class="digit-box" style="display:inline-block;width:54px;height:62px;line-height:62px;text-align:center;font-family:'Courier New',Courier,monospace;font-size:26px;font-weight:800;color:#7c3aed;background:#ede9fe;border:2px solid #c4b5fd;border-radius:14px;">{{D3}}</div>
                         </td>
-                        <!-- Dot separator -->
                         <td style="padding:0 10px;text-align:center;vertical-align:middle;">
-                          <span style="font-size:22px;color:rgba(255,255,255,0.2);font-weight:700;line-height:64px;display:inline-block;">·</span>
+                          <span style="font-size:22px;color:#d1d5db;font-weight:700;line-height:62px;display:inline-block;">·</span>
                         </td>
                         <td class="digit-cell" style="padding:0 5px;">
-                          <div class="digit" style="display:inline-block;width:56px;height:64px;line-height:64px;text-align:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,'Courier New',monospace;font-size:28px;font-weight:800;color:#ffffff;background:linear-gradient(135deg,rgba(124,58,237,0.3),rgba(59,130,246,0.2));border:1px solid rgba(124,58,237,0.35);border-radius:14px;letter-spacing:0;">{{D4}}</div>
+                          <div class="digit-box" style="display:inline-block;width:54px;height:62px;line-height:62px;text-align:center;font-family:'Courier New',Courier,monospace;font-size:26px;font-weight:800;color:#7c3aed;background:#ede9fe;border:2px solid #c4b5fd;border-radius:14px;">{{D4}}</div>
                         </td>
                         <td class="digit-cell" style="padding:0 5px;">
-                          <div class="digit" style="display:inline-block;width:56px;height:64px;line-height:64px;text-align:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,'Courier New',monospace;font-size:28px;font-weight:800;color:#ffffff;background:linear-gradient(135deg,rgba(124,58,237,0.3),rgba(59,130,246,0.2));border:1px solid rgba(124,58,237,0.35);border-radius:14px;letter-spacing:0;">{{D5}}</div>
+                          <div class="digit-box" style="display:inline-block;width:54px;height:62px;line-height:62px;text-align:center;font-family:'Courier New',Courier,monospace;font-size:26px;font-weight:800;color:#7c3aed;background:#ede9fe;border:2px solid #c4b5fd;border-radius:14px;">{{D5}}</div>
                         </td>
                         <td class="digit-cell" style="padding:0 5px;">
-                          <div class="digit" style="display:inline-block;width:56px;height:64px;line-height:64px;text-align:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,'Courier New',monospace;font-size:28px;font-weight:800;color:#ffffff;background:linear-gradient(135deg,rgba(124,58,237,0.3),rgba(59,130,246,0.2));border:1px solid rgba(124,58,237,0.35);border-radius:14px;letter-spacing:0;">{{D6}}</div>
+                          <div class="digit-box" style="display:inline-block;width:54px;height:62px;line-height:62px;text-align:center;font-family:'Courier New',Courier,monospace;font-size:26px;font-weight:800;color:#7c3aed;background:#ede9fe;border:2px solid #c4b5fd;border-radius:14px;">{{D6}}</div>
                         </td>
                       </tr>
                     </table>
 
-                    <!-- Expiry -->
-                    <p style="margin:20px 0 0 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;color:rgba(255,255,255,0.35);">
+                    <p class="expiry-text" style="margin:18px 0 0 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;color:#9ca3af;">
                       Expires in <span style="color:#ef4444;font-weight:600;">10 minutes</span>
                     </p>
                   </td>
@@ -151,11 +163,11 @@
           <!-- Security notice -->
           <tr>
             <td class="pad-sm" style="padding:16px 48px 0 48px;">
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:rgba(234,179,8,0.05);border:1px solid rgba(234,179,8,0.15);border-radius:14px;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" class="security-box" style="background:#fffbeb;border:1px solid #fde68a;border-radius:14px;">
                 <tr>
                   <td style="padding:14px 18px;">
-                    <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;line-height:1.6;color:rgba(255,255,255,0.4);">
-                      🔒 <span style="color:rgba(255,255,255,0.6);">Never share this code.</span> Nabeel Agency will never ask you for it.
+                    <p class="security-text" style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;line-height:1.6;color:#92400e;">
+                      🔒 <strong>Never share this code.</strong> Nabeel Agency will never ask you for it.
                     </p>
                   </td>
                 </tr>
@@ -165,25 +177,18 @@
 
           <!-- Footer -->
           <tr>
-            <td class="pad-sm" style="padding:32px 48px 40px 48px;">
-              <div style="height:1px;background:rgba(255,255,255,0.06);margin-bottom:28px;"></div>
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                <tr>
-                  <td>
-                    <p style="margin:0 0 4px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12px;color:rgba(255,255,255,0.25);line-height:1.6;">
-                      If you didn't create this account, you can safely ignore this email.
-                    </p>
-                    <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12px;color:rgba(255,255,255,0.18);">
-                      © 2025 Nabeel Agency · This is an automated message — do not reply.
-                    </p>
-                  </td>
-                </tr>
-              </table>
+            <td class="pad-sm" style="padding:28px 48px 36px 48px;">
+              <div class="divider" style="height:1px;background:#e5e7eb;margin-bottom:24px;"></div>
+              <p class="footer-text" style="margin:0 0 4px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12px;color:#9ca3af;line-height:1.6;">
+                If you didn't create this account, you can safely ignore this email.
+              </p>
+              <p class="footer-text" style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12px;color:#d1d5db;">
+                © 2025 Nabeel Agency · This is an automated message — do not reply.
+              </p>
             </td>
           </tr>
 
         </table>
-        <!-- /Card -->
 
       </td>
     </tr>

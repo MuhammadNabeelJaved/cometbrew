@@ -426,16 +426,35 @@ export const deleteScrollingCard = asyncHandler(async (req, res) => {
 // UPDATE CONTACT INFO
 // =========================
 export const updateContactInfo = asyncHandler(async (req, res) => {
-    const { address, email, phone, businessHours, mapEmbedUrl } = req.body;
+    const { address, email, phone, businessHours, mapEmbedUrl, mapProvider, mapLat, mapLng, mapZoom, mapMarkerLabel } = req.body;
 
-    const cms = await CMS.getOrCreate();
-    if (address !== undefined) cms.contactInfo.address = address;
-    if (email !== undefined) cms.contactInfo.email = email;
-    if (phone !== undefined) cms.contactInfo.phone = phone;
-    if (businessHours !== undefined) cms.contactInfo.businessHours = businessHours;
-    if (mapEmbedUrl !== undefined) cms.contactInfo.mapEmbedUrl = mapEmbedUrl;
-    cms.lastUpdatedBy = req.user._id;
-    await cms.save();
+    // Normalise Google Maps embed URL — strip <iframe> wrapper if pasted
+    const $set = { lastUpdatedBy: req.user._id };
+
+    if (address !== undefined)       $set['contactInfo.address']       = address;
+    if (email !== undefined)         $set['contactInfo.email']         = email;
+    if (phone !== undefined)         $set['contactInfo.phone']         = phone;
+    if (businessHours !== undefined) $set['contactInfo.businessHours'] = businessHours;
+
+    if (mapEmbedUrl !== undefined) {
+        const srcMatch = mapEmbedUrl.match(/src=["']([^"']+)["']/);
+        $set['contactInfo.mapEmbedUrl'] = srcMatch ? srcMatch[1] : mapEmbedUrl.trim();
+    }
+
+    if (mapProvider !== undefined)    $set['contactInfo.mapProvider']    = mapProvider;
+    if (mapLat !== undefined)         $set['contactInfo.mapLat']         = (mapLat === '' || mapLat === null) ? null : Number(mapLat);
+    if (mapLng !== undefined)         $set['contactInfo.mapLng']         = (mapLng === '' || mapLng === null) ? null : Number(mapLng);
+    if (mapZoom !== undefined)        $set['contactInfo.mapZoom']        = Number(mapZoom) || 13;
+    if (mapMarkerLabel !== undefined) $set['contactInfo.mapMarkerLabel'] = mapMarkerLabel;
+
+    // Ensure singleton doc exists first, then update atomically
+    const existing = await CMS.getOrCreate();
+    const cms = await CMS.findOneAndUpdate(
+        { _id: existing._id },
+        { $set },
+        { new: true }
+    );
+
     emitCmsUpdate(req, 'cms');
     successResponse(res, "Contact info updated", { contactInfo: cms.contactInfo });
 });

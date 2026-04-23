@@ -2,7 +2,7 @@
  * Content Editor Page
  * Admin interface to manage all dynamic website content via CMS API.
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useContent, TechItem, ProcessStep, WhyChooseUsFeature, ContactInfo, SocialLinks, CustomSocialLink, Testimonial, AboutContent, AboutStat, AboutMilestone, AboutValue, PrivacyPolicyContent, TermsContent, CookiesPolicyContent, LegalSection, CookieCategory } from '../../contexts/ContentContext';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
@@ -12,7 +12,8 @@ import { Label } from '../../components/ui/label';
 import { Button } from '../../components/ui/button';
 import { Textarea } from '../../components/ui/textarea';
 import { Select, SelectItem } from '../../components/ui/select';
-import { Plus, Trash2, Save, Star } from 'lucide-react';
+import { Plus, Trash2, Save, Star, MapPin } from 'lucide-react';
+import { Map, MapMarker, MarkerContent, MarkerPopup, MapControls } from '../../components/ui/map';
 
 const SOCIAL_PLATFORMS = [
   { value: 'Youtube', label: 'YouTube' },
@@ -60,9 +61,26 @@ export default function ContentEditor() {
   const [aboutDraft, setAboutDraft] = useState<AboutContent>(about);
   useEffect(() => { setAboutDraft(about); }, [about]);
 
-  // Contact info draft state — local edits accumulate here; only saved on explicit button click
-  const [contactDraft, setContactDraft] = useState<ContactInfo>(contactInfo);
-  useEffect(() => { setContactDraft(contactInfo); }, [contactInfo]);
+  const normalizeMapUrl = (raw: string) => {
+    const m = raw.trim().match(/src=["']([^"']+)["']/);
+    return m ? m[1] : raw.trim();
+  };
+
+  // Contact draft is initialised once from context and only synced again from the
+  // server-confirmed response after an explicit Save click. This prevents any
+  // socket refresh or context update from overwriting the user's edits.
+  const [contactDraft, setContactDraft] = useState<ContactInfo>({
+    ...contactInfo,
+    mapEmbedUrl: normalizeMapUrl(contactInfo.mapEmbedUrl),
+  });
+  const contactInitRef = useRef(false);
+  useEffect(() => {
+    // Sync once when context first loads real data (e.g. after page refresh)
+    if (!contactInitRef.current && contactInfo.address) {
+      contactInitRef.current = true;
+      setContactDraft({ ...contactInfo, mapEmbedUrl: normalizeMapUrl(contactInfo.mapEmbedUrl) });
+    }
+  }, [contactInfo]);
 
   // Legal pages draft states
   const [privacyDraft, setPrivacyDraft] = useState<PrivacyPolicyContent>(privacyPolicy);
@@ -419,7 +437,10 @@ export default function ContentEditor() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div><CardTitle>Contact Information</CardTitle><CardDescription>Shown on the Contact page.</CardDescription></div>
-              <Button size="sm" disabled={isSaving} onClick={() => saveWithFeedback(() => updateContactInfo(contactDraft))}>
+              <Button size="sm" disabled={isSaving} onClick={() => saveWithFeedback(async () => {
+                const confirmed = await updateContactInfo(contactDraft);
+                setContactDraft({ ...confirmed, mapEmbedUrl: normalizeMapUrl(confirmed.mapEmbedUrl) });
+              })}>
                 <Save className="h-4 w-4 mr-1" />{isSaving ? 'Saving…' : 'Save'}
               </Button>
             </CardHeader>
@@ -430,31 +451,116 @@ export default function ContentEditor() {
                 <div className="space-y-2"><Label>Phone</Label><Input value={contactDraft.phone} onChange={e => setContactDraft(d => ({ ...d, phone: e.target.value }))} placeholder="+1 (555) 123-4567" /></div>
               </div>
               <div className="space-y-2"><Label>Business Hours</Label><Textarea value={contactDraft.businessHours} onChange={e => setContactDraft(d => ({ ...d, businessHours: e.target.value }))} placeholder="Monday - Friday&#10;9:00 AM - 6:00 PM PST" rows={2} /></div>
+              {/* ── Map Provider Selector ── */}
               <div className="space-y-2">
-                <Label>Google Maps Embed URL</Label>
-                <Input
-                  value={contactDraft.mapEmbedUrl}
-                  onChange={e => setContactDraft(d => ({ ...d, mapEmbedUrl: e.target.value }))}
-                  placeholder="https://www.google.com/maps/embed?pb=..."
-                />
-                <p className="text-xs text-muted-foreground">
-                  Go to Google Maps → share your location → Embed a map → copy only the <code>src="..."</code> URL from the iframe code. Leave blank to hide the map.
-                </p>
-                {contactDraft.mapEmbedUrl && (
-                  <div className="mt-3 rounded-xl overflow-hidden border border-border/50 aspect-video">
-                    <iframe
-                      src={contactDraft.mapEmbedUrl}
-                      width="100%"
-                      height="100%"
-                      style={{ border: 0 }}
-                      allowFullScreen
-                      loading="lazy"
-                      referrerPolicy="no-referrer-when-downgrade"
-                      title="Map preview"
-                    />
-                  </div>
-                )}
+                <Label>Map Type</Label>
+                <Select
+                  value={contactDraft.mapProvider}
+                  onChange={e => setContactDraft(d => ({ ...d, mapProvider: e.target.value as 'google' | 'mapcn' | 'both' }))}
+                >
+                  <SelectItem value="google">Google Maps (iframe embed)</SelectItem>
+                  <SelectItem value="mapcn">MapCN — MapLibre (auto dark/light)</SelectItem>
+                  <SelectItem value="both">Both maps</SelectItem>
+                </Select>
               </div>
+
+              {/* ── Google Maps section ── */}
+              {(contactDraft.mapProvider === 'google' || contactDraft.mapProvider === 'both') && (
+                <div className="space-y-2 rounded-xl border border-border/50 p-4">
+                  <Label className="flex items-center gap-1.5 font-semibold"><MapPin className="h-4 w-4 text-red-500" /> Google Maps Embed URL</Label>
+                  <Input
+                    value={contactDraft.mapEmbedUrl}
+                    onChange={e => setContactDraft(d => ({ ...d, mapEmbedUrl: normalizeMapUrl(e.target.value) }))}
+                    placeholder="https://www.google.com/maps/embed?pb=..."
+                  />
+                  {contactDraft.mapEmbedUrl && !contactDraft.mapEmbedUrl.includes('google.com/maps/embed') && (
+                    <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-400 space-y-1">
+                      <p className="font-semibold">⚠ Not an embeddable URL</p>
+                      <p>Use the <strong>"Embed a map"</strong> tab in Google Maps → Share, NOT "Send a link". Copy the full iframe HTML and paste it here.</p>
+                    </div>
+                  )}
+                  {!contactDraft.mapEmbedUrl && (
+                    <p className="text-xs text-muted-foreground">Google Maps → Share → <strong>Embed a map</strong> tab → Copy HTML → paste here.</p>
+                  )}
+                  {contactDraft.mapEmbedUrl && contactDraft.mapEmbedUrl.includes('google.com/maps/embed') && (
+                    <div className="mt-2 rounded-xl overflow-hidden border border-border/50 aspect-video">
+                      <iframe src={contactDraft.mapEmbedUrl} width="100%" height="100%" style={{ border: 0 }} allowFullScreen loading="lazy" referrerPolicy="no-referrer-when-downgrade" title="Google Map preview" />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── MapCN section ── */}
+              {(contactDraft.mapProvider === 'mapcn' || contactDraft.mapProvider === 'both') && (
+                <div className="space-y-3 rounded-xl border border-border/50 p-4">
+                  <Label className="flex items-center gap-1.5 font-semibold"><MapPin className="h-4 w-4 text-violet-500" /> MapCN — Coordinates</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Latitude</Label>
+                      <Input
+                        type="number"
+                        step="any"
+                        value={contactDraft.mapLat ?? ''}
+                        onChange={e => setContactDraft(d => ({ ...d, mapLat: e.target.value === '' ? null : parseFloat(e.target.value) }))}
+                        placeholder="e.g. 25.2048"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Longitude</Label>
+                      <Input
+                        type="number"
+                        step="any"
+                        value={contactDraft.mapLng ?? ''}
+                        onChange={e => setContactDraft(d => ({ ...d, mapLng: e.target.value === '' ? null : parseFloat(e.target.value) }))}
+                        placeholder="e.g. 55.2708"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Zoom (1–20)</Label>
+                      <Input
+                        type="number"
+                        min={1} max={20}
+                        value={contactDraft.mapZoom}
+                        onChange={e => setContactDraft(d => ({ ...d, mapZoom: parseInt(e.target.value) || 13 }))}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Marker Label</Label>
+                      <Input
+                        value={contactDraft.mapMarkerLabel}
+                        onChange={e => setContactDraft(d => ({ ...d, mapMarkerLabel: e.target.value }))}
+                        placeholder="e.g. Our Office"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Google Maps → right-click your location → click the coordinates to copy them.
+                  </p>
+                  {contactDraft.mapLat !== null && contactDraft.mapLng !== null && (
+                    <div className="mt-2 rounded-xl overflow-hidden border border-border/50" style={{ height: 260 }}>
+                      <Map
+                        center={[contactDraft.mapLng!, contactDraft.mapLat!]}
+                        zoom={contactDraft.mapZoom}
+                      >
+                        <MapControls />
+                        <MapMarker
+                          longitude={contactDraft.mapLng!}
+                          latitude={contactDraft.mapLat!}
+                        >
+                          <MarkerContent />
+                          {contactDraft.mapMarkerLabel && (
+                            <MarkerPopup>
+                              <div className="px-2 py-1 text-sm font-medium">{contactDraft.mapMarkerLabel}</div>
+                            </MarkerPopup>
+                          )}
+                        </MapMarker>
+                      </Map>
+                    </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

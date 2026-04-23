@@ -114,7 +114,14 @@ const cmsSchema = new mongoose.Schema(
             email: { type: String, trim: true, default: "" },
             phone: { type: String, trim: true, default: "" },
             businessHours: { type: String, trim: true, default: "" },
+            // Google Maps iframe embed
             mapEmbedUrl: { type: String, trim: true, default: "" },
+            // MapCN (MapLibre) provider fields
+            mapProvider: { type: String, enum: ["google", "mapcn", "both"], default: "google" },
+            mapLat: { type: Number, default: null },
+            mapLng: { type: Number, default: null },
+            mapZoom: { type: Number, default: 13 },
+            mapMarkerLabel: { type: String, trim: true, default: "" },
         },
 
         // ── Social Links ──

@@ -48,7 +48,7 @@ app.use(helmet({
             fontSrc:        ["'self'", "https://fonts.gstatic.com"],
             imgSrc:         ["'self'", "data:", "https:", "blob:"],
             connectSrc:     ["'self'", "wss:", "https:"],    // websocket + API calls
-            frameSrc:       ["'none'"],
+            frameSrc:       ["https://www.google.com", "https://maps.google.com"],
             objectSrc:      ["'none'"],
             upgradeInsecureRequests: [],
         },

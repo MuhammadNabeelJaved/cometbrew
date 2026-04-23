@@ -14,13 +14,12 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Template files live at: server/email-templates/
-const TEMPLATES_DIR = path.resolve(__dirname, '../../../email-templates');
+const TEMPLATES_DIR = path.resolve(__dirname, '../../email-templates');
 
 // Initialise Resend client with the API key from environment
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// Sender address used for all outbound emails
-const from = process.env.FROM_EMAIL;
+// Sender address — read dynamically so env overrides in tests work correctly
 
 /**
  * Loads an HTML template file and replaces all {{KEY}} placeholders.
@@ -52,7 +51,7 @@ const renderTemplate = (filename, vars = {}) => {
  */
 export const sendEmail = async ({ to, subject, html, text }) => {
     const { data, error } = await resend.emails.send({
-        from,
+        from: process.env.FROM_EMAIL,
         to,
         subject,
         html,

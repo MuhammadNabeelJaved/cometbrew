@@ -59,6 +59,11 @@ export interface ContactInfo {
   phone: string;
   businessHours: string;
   mapEmbedUrl: string;
+  mapProvider: 'google' | 'mapcn' | 'both';
+  mapLat: number | null;
+  mapLng: number | null;
+  mapZoom: number;
+  mapMarkerLabel: string;
 }
 
 export interface CustomSocialLink {
@@ -226,7 +231,7 @@ export interface ContentContextType {
   updateTechStack: (groups: TechGroup[]) => Promise<void>;
   updateProcessSteps: (steps: ProcessStep[]) => Promise<void>;
   updateWhyChooseUs: (content: WhyChooseUsContent) => Promise<void>;
-  updateContactInfo: (info: ContactInfo) => Promise<void>;
+  updateContactInfo: (info: ContactInfo) => Promise<ContactInfo>;
   updateSocialLinks: (links: SocialLinks) => Promise<void>;
   updateTestimonials: (items: Testimonial[]) => Promise<void>;
   // About page CMS
@@ -324,7 +329,7 @@ const defaultWhyChooseUs: WhyChooseUsContent = {
   ]
 };
 
-const defaultContactInfo: ContactInfo = { address: "", email: "", phone: "", businessHours: "", mapEmbedUrl: "" };
+const defaultContactInfo: ContactInfo = { address: "", email: "", phone: "", businessHours: "", mapEmbedUrl: "", mapProvider: "google", mapLat: null, mapLng: null, mapZoom: 13, mapMarkerLabel: "" };
 const defaultSocialLinks: SocialLinks = { twitter: "", linkedin: "", instagram: "", github: "", customSocialLinks: [] };
 
 const defaultAbout: AboutContent = {
@@ -445,6 +450,11 @@ function mapCmsToState(cms: any) {
     phone: cms.contactInfo?.phone || '',
     businessHours: cms.contactInfo?.businessHours || '',
     mapEmbedUrl: cms.contactInfo?.mapEmbedUrl || '',
+    mapProvider: cms.contactInfo?.mapProvider || 'google',
+    mapLat: cms.contactInfo?.mapLat ?? null,
+    mapLng: cms.contactInfo?.mapLng ?? null,
+    mapZoom: cms.contactInfo?.mapZoom ?? 13,
+    mapMarkerLabel: cms.contactInfo?.mapMarkerLabel || '',
   };
 
   const socialLinks: SocialLinks = {
@@ -752,10 +762,27 @@ export function ContentProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const updateContactInfo = async (info: ContactInfo) => {
-    setContactInfo(info);
+  const updateContactInfo = async (info: ContactInfo): Promise<ContactInfo> => {
     bustCmsCache();
-    await cmsApi.updateContactInfo(info);
+    const res = await cmsApi.updateContactInfo(info);
+    const saved = res?.data?.data?.contactInfo;
+    const confirmed: ContactInfo = {
+      address:        saved?.address        ?? info.address,
+      email:          saved?.email          ?? info.email,
+      phone:          saved?.phone          ?? info.phone,
+      businessHours:  saved?.businessHours  ?? info.businessHours,
+      mapEmbedUrl:    saved?.mapEmbedUrl    ?? info.mapEmbedUrl,
+      mapProvider:   (saved?.mapProvider    ?? info.mapProvider) as ContactInfo['mapProvider'],
+      mapLat:         saved?.mapLat         !== undefined ? saved.mapLat         : info.mapLat,
+      mapLng:         saved?.mapLng         !== undefined ? saved.mapLng         : info.mapLng,
+      mapZoom:        saved?.mapZoom        ?? info.mapZoom,
+      mapMarkerLabel: saved?.mapMarkerLabel ?? info.mapMarkerLabel,
+    };
+    // Apply confirmed state first, then bust cache so socket-triggered fetchCMS
+    // never overwrites the confirmed state with stale data.
+    setContactInfo(confirmed);
+    bustCmsCache();
+    return confirmed;
   };
 
   const updateSocialLinks = async (links: SocialLinks) => {
