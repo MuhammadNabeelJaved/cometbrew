@@ -131,3 +131,6 @@ text-to-word.doc
 
 # Superdesign
 .superdesign/
+
+# Git worktrees
+.worktrees/
