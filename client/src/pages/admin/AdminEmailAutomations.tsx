@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
     Workflow, Plus, X, Save, Trash2, Edit3, RefreshCw, Mail,
     Clock, Zap, ChevronDown, ChevronUp, AlertCircle, CheckCircle2,
@@ -42,7 +43,7 @@ const EMPTY_FORM: Partial<EmailAutomation> = {
 
 // ─── Template Preview Modal ───────────────────────────────────────────────────
 function TemplatePreviewModal({ template, onClose }: { template: EmailTemplate; onClose: () => void }) {
-    return (
+    return createPortal(
         <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
             <div className="bg-background border border-border rounded-2xl w-full max-w-3xl shadow-2xl flex flex-col" style={{ maxHeight: '92vh' }}>
                 <div className="flex items-center justify-between px-5 py-4 border-b border-border/50 shrink-0">
@@ -63,7 +64,8 @@ function TemplatePreviewModal({ template, onClose }: { template: EmailTemplate; 
                     <iframe title={template.name} srcDoc={template.html} className="w-full border-0" style={{ height: '600px' }} sandbox="allow-same-origin" />
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }
 
@@ -101,7 +103,7 @@ function TemplateEditorModal({
         } finally { setSaving(false); }
     };
 
-    return (
+    return createPortal(
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <div className="bg-background border border-border rounded-2xl w-full shadow-2xl flex flex-col" style={{ maxWidth: 'min(95vw, 1200px)', maxHeight: '95vh', height: '95vh' }}>
                 {/* Header */}
@@ -190,7 +192,8 @@ function TemplateEditorModal({
                     </div>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }
 
@@ -240,7 +243,7 @@ function AIGenerateDialog({
         onClose();
     };
 
-    return (
+    return createPortal(
         <div className="fixed inset-0 z-[205] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
             <div className="relative w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200"
                 style={{ background: 'linear-gradient(135deg, rgba(15,10,30,0.98) 0%, rgba(20,10,40,0.98) 100%)', border: '1px solid rgba(255,255,255,0.08)' }}>
@@ -378,7 +381,8 @@ function AIGenerateDialog({
                     </div>
                 )}
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }
 
@@ -621,7 +625,7 @@ function AutomationForm({ initial, onSave, onClose }: {
         return aM - bM;
     });
 
-    return (
+    return createPortal(
         <div className="fixed inset-0 z-[200] flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
             <div className="bg-background border border-border rounded-2xl w-full max-w-2xl my-4 shadow-2xl animate-in fade-in zoom-in duration-200">
                 <div className="p-6 space-y-5">
@@ -773,7 +777,8 @@ function AutomationForm({ initial, onSave, onClose }: {
             </div>
 
             {previewing && <TemplatePreviewModal template={previewing} onClose={() => setPreviewing(null)} />}
-        </div>
+        </div>,
+        document.body
     );
 }
 
