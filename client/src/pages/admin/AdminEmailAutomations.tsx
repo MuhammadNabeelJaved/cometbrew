@@ -1,10 +1,10 @@
-import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import {
     Workflow, Plus, X, Save, Trash2, Edit3, RefreshCw, Mail,
     Clock, Zap, ChevronDown, ChevronUp, AlertCircle, CheckCircle2, Search, ChevronLeft, ChevronRight,
     Loader2, ToggleLeft, ToggleRight, LayoutTemplate, Eye, ArrowRight,
-    Sparkles, Code2, RotateCcw, FileText, Settings, Wand2,
+    Sparkles, Code2, RotateCcw, Wand2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../../components/ui/button';
@@ -323,7 +323,7 @@ function AIGenerateDialog({
                             <Button
                                 onClick={handleGenerate}
                                 disabled={generating}
-                                className="flex-1 gap-2 bg-gradient-to-r from-violet-600 to-pink-600 hover:from-violet-700 hover:to-pink-700 border-0 text-white"
+                                className="flex-1 gap-2"
                             >
                                 {generating
                                     ? <><Loader2 className="h-4 w-4 animate-spin" /> Designing template…</>
