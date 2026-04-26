@@ -90,7 +90,7 @@ export default function Login() {
       loginWithToken(user);
       navigate(from ?? getDashboardPath(user.role), { replace: true });
     } catch (err: any) {
-      toast.error(err.message || 'Invalid 2FA code');
+      toast.error(err?.response?.data?.message || err?.message || 'Invalid 2FA code');
     } finally {
       setValidating2FA(false);
     }
