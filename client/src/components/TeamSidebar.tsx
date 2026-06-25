@@ -354,7 +354,7 @@ export function TeamSidebar({ isOpen = false, onClose, collapsed = false, onTogg
                 {showText && (
                   <motion.span key="logo-text" initial={{ opacity: 0, width: 0 }} animate={{ opacity: 1, width: 'auto' }} exit={{ opacity: 0, width: 0 }} transition={{ duration: 0.22, ease: 'easeInOut' }}
                     className="hidden lg:block font-bold text-xl tracking-tight text-foreground overflow-hidden whitespace-nowrap">
-                    TEAM<span className="text-primary">DASH</span>
+                    COMET<span className="text-primary">BREW</span>
                   </motion.span>
                 )}
               </AnimatePresence>
