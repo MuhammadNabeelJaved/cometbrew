@@ -8,7 +8,7 @@ import React, { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ContentProvider } from './contexts/ContentContext';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { SocketProvider } from './contexts/SocketContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -184,15 +184,18 @@ const configureTailwind = () => {
   }
 };
 
-// Syncs admin-set globalTheme from ContentContext into ThemeContext on load/change
+// Syncs admin-set globalTheme from ContentContext into ThemeContext for public visitors.
+// Authenticated users manage their own theme preference independently via the
+// personal toggle — we must not override it with the site-wide CMS setting.
 function GlobalThemeSyncer() {
   const { globalTheme } = useContent();
   const { setTheme } = useTheme();
+  const { user } = useAuth();
   useEffect(() => {
-    if (globalTheme === 'dark' || globalTheme === 'light') {
+    if (!user && (globalTheme === 'dark' || globalTheme === 'light')) {
       setTheme(globalTheme);
     }
-  }, [globalTheme]);
+  }, [globalTheme, user]);
   return null;
 }
 
