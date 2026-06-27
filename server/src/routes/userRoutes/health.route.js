@@ -38,6 +38,17 @@ router.get("/", async (_req, res) => {
   });
 });
 
+// ─── GET /api/v1/health/config — public; shows CORS + env config for debugging ─
+router.get("/config", (_req, res) => {
+  const corsOrigins = (process.env.CORS_ORIGIN || "").split(",").map(o => o.trim()).filter(Boolean);
+  res.json({
+    nodeEnv: process.env.NODE_ENV || "(not set)",
+    corsOrigins,
+    socketUrl: `wss://${_req.hostname}`,
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // ─── GET /api/v1/health/stats — admin performance dashboard ──────────────────
 router.get("/stats", userAuthenticated, authorizeRoles("admin"), async (_req, res) => {
   const mem = process.memoryUsage();

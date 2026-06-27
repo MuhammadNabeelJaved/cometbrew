@@ -70,8 +70,10 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
             withCredentials: true,             // HTTP-only cookie (primary)
             auth: socketToken ? { token: socketToken } : {},  // in-memory token (fallback)
             transports: ['polling', 'websocket'],
-            reconnectionDelay: 2000,
-            reconnectionDelayMax: 10000,
+            timeout: 60000,          // Give Render 60s to wake from cold start
+            reconnectionDelay: 3000,
+            reconnectionDelayMax: 15000,
+            reconnectionAttempts: Infinity,
         });
 
         socket.on('connect', () => {
@@ -84,15 +86,11 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
         socket.on('connect_error', (err) => {
             setIsConnected(false);
-            // Stop retrying on auth errors — the token is invalid/expired.
-            // AuthContext will clear the session; the socket will be torn down
-            // in the next effect run once isAuthenticated becomes false.
-            const isAuthError =
-                err.message.toLowerCase().includes('authentication') ||
-                err.message.toLowerCase().includes('unauthorized');
-            if (isAuthError) {
-                socket.io.opts.reconnection = false;
-            }
+            // Do NOT disable reconnection here — Render free tier can take 30-60s
+            // to wake from sleep; the socket must keep retrying until it's up.
+            // AuthContext handles true session expiry (logs user out), which
+            // triggers the cleanup branch above on the next effect run.
+            console.warn('[Socket] connect_error:', err.message);
         });
 
         // Bridge server-emitted data:updated events (sent to authenticated rooms
