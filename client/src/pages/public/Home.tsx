@@ -107,7 +107,7 @@ export default function Home() {
   );
 
   return (
-    <div className="space-y-4 sm:space-y-24 md:space-y-32 pb-8 sm:pb-16 md:pb-20 overflow-x-hidden bg-background">
+    <div className="space-y-10 sm:space-y-24 md:space-y-32 pb-8 sm:pb-16 md:pb-20 overflow-x-hidden bg-background">
       <Hero />
 
       <TechStack />
