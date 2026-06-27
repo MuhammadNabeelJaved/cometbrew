@@ -145,9 +145,9 @@ export function Footer() {
               <div className="relative">
                 <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                 <img 
-                  src="https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/uploads/216147d0-06c1-4dee-8a5a-f933c6ef8556/1766429553723-26c2f3fe/N_Logo-01.png" 
+                  src="/Comet Brew.svg"
                   alt="CometBrew Logo"
-                  className="h-12 w-auto relative z-10 dark:invert transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3"
+                  className="h-12 w-auto relative z-10 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3"
                 />
               </div>
               <div className="flex flex-col">

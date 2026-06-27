@@ -268,7 +268,7 @@ export interface ContentContextType {
 
 // --- Defaults ---
 
-const defaultLogoUrl = "https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/uploads/216147d0-06c1-4dee-8a5a-f933c6ef8556/1766429553723-26c2f3fe/N_Logo-01.png";
+const defaultLogoUrl = "/Comet Brew.svg";
 
 const defaultHeroContent: HeroContent = {
   badgeText: "Accepting New Projects for 2026",

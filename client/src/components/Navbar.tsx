@@ -132,7 +132,7 @@ export function Navbar() {
                 <img 
                   src={logoUrl} 
                   alt="CometBrew Logo"
-                  className="h-10 w-auto relative z-10 dark:invert transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3"
+                  className="h-10 w-auto relative z-10 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3"
                 />
               </div>
               <div className="flex flex-col">

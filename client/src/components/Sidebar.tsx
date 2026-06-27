@@ -461,8 +461,8 @@ export function Sidebar({ isOpen = false, onClose, collapsed = false, onToggleCo
               <motion.div key="logo-link" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }} className={cn(!showText && 'lg:hidden')}>
                 <Link to="/" className="flex items-center gap-2.5 group min-w-0">
                   <motion.img
-                    src="https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/uploads/216147d0-06c1-4dee-8a5a-f933c6ef8556/1766429553723-26c2f3fe/N_Logo-01.png"
-                    alt="CometBrew Logo" className="h-9 w-auto dark:invert shrink-0"
+                    src="/Comet Brew.svg"
+                    alt="CometBrew Logo" className="h-9 w-auto shrink-0"
                     whileHover={{ scale: 1.08, rotate: -3 }} transition={{ type: 'spring', stiffness: 400, damping: 15 }}
                   />
                   <AnimatePresence initial={false}>
