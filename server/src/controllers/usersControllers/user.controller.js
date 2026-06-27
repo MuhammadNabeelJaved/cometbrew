@@ -243,7 +243,9 @@ export const loginUser = asyncHandler(async (req, res) => {
     const userResponse = user.toObject();
     delete userResponse.password;
 
-    successResponse(res, "Signed in successfully", userResponse, 200);
+    // Include accessToken in body so the client can use it for Socket.IO auth
+    // (HTTP-only cookies don't cross domain boundaries in all browsers)
+    successResponse(res, "Signed in successfully", { ...userResponse, accessToken }, 200);
 });
 
 /**

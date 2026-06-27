@@ -3,7 +3,10 @@
  *
  * Provides a single, authenticated Socket.IO connection for the entire app.
  * - Connection is created when the user is authenticated and destroyed on logout.
- * - The socket sends the HTTP-only cookie automatically (withCredentials: true).
+ * - Auth uses two layers: HTTP-only cookie (withCredentials) AND an in-memory
+ *   access token passed via socket.handshake.auth.token. The token fallback is
+ *   required because cross-domain HTTP-only cookies are blocked by some browsers
+ *   even with SameSite=None (Safari ITP, Firefox ETP, Chrome Privacy Sandbox).
  * - All socket event listeners should be added via the `socket` object from useSocket().
  *
  * Usage:
@@ -36,20 +39,16 @@ const SOCKET_URL =
     (import.meta.env.VITE_SOCKET_URL as string) || window.location.origin;
 
 export function SocketProvider({ children }: { children: React.ReactNode }) {
-    const { isAuthenticated, isLoading: isAuthLoading, user } = useAuth();
+    const { isAuthenticated, isLoading: isAuthLoading, user, socketToken } = useAuth();
     const socketRef = useRef<Socket | null>(null);
     const [isConnected, setIsConnected] = useState(false);
 
     useEffect(() => {
         // Wait for auth to finish initialising before touching sockets.
-        // Without this guard, a stored-but-expired session would cause the
-        // socket to connect and immediately receive "Authentication required"
-        // before the profile check has had a chance to clear the stale token.
         if (isAuthLoading) return;
 
         // Only connect when the user is authenticated
         if (!isAuthenticated || !user) {
-            // Disconnect and clean up if the user logs out
             if (socketRef.current) {
                 socketRef.current.disconnect();
                 socketRef.current = null;
@@ -58,11 +57,18 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
             return;
         }
 
-        // Avoid creating duplicate connections
+        // Don't create a duplicate connection if already connected
         if (socketRef.current?.connected) return;
 
+        // Clean up a stale disconnected socket before creating a new one
+        if (socketRef.current && !socketRef.current.connected) {
+            socketRef.current.disconnect();
+            socketRef.current = null;
+        }
+
         const socket = io(SOCKET_URL, {
-            withCredentials: true, // sends the HTTP-only accessToken cookie
+            withCredentials: true,             // HTTP-only cookie (primary)
+            auth: socketToken ? { token: socketToken } : {},  // in-memory token (fallback)
             transports: ['polling', 'websocket'],
             reconnectionDelay: 2000,
             reconnectionDelayMax: 10000,
@@ -109,7 +115,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
             // Don't disconnect on component unmount — keep the connection alive
             // across route changes. Only disconnect on logout (handled above).
         };
-    }, [isAuthenticated, isAuthLoading, user?._id]);
+    }, [isAuthenticated, isAuthLoading, user?._id, socketToken]);
 
     // Full cleanup on unmount of the provider itself (app teardown)
     useEffect(() => {
@@ -120,7 +126,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
     return (
         <SocketContext.Provider
-            value={{ socket: socketRef.current, isConnected }}
+            value={{ socket: isConnected ? socketRef.current : null, isConnected }}
         >
             {children}
         </SocketContext.Provider>

@@ -86,8 +86,8 @@ export default function Login() {
     if (!twoFAPending || !totpCode) return;
     setValidating2FA(true);
     try {
-      const { user } = await twoFactorApi.validate(totpCode, twoFAPending.userId);
-      loginWithToken(user);
+      const { user, accessToken } = await twoFactorApi.validate(totpCode, twoFAPending.userId);
+      loginWithToken(user, accessToken);
       navigate(from ?? getDashboardPath(user.role), { replace: true });
     } catch (err: any) {
       toast.error(err?.response?.data?.message || err?.message || 'Invalid 2FA code');
