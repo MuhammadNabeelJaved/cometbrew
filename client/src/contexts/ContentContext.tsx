@@ -270,6 +270,9 @@ export interface ContentContextType {
 
 const defaultLogoUrl = "/Comet Brew.svg";
 
+const sanitizeLogoUrl = (url?: string | null) =>
+  !url || url.includes('vgbujcuwptvheqijyjbe.supabase.co') ? defaultLogoUrl : url;
+
 const defaultHeroContent: HeroContent = {
   badgeText: "Accepting New Projects for 2026",
   titleLine1: "We Build",
@@ -508,7 +511,7 @@ function mapCmsToState(cms: any) {
     categories: rawCP.categories?.length ? rawCP.categories : defaultCookiesPolicy.categories,
   };
 
-  return { techStack, processSteps, whyChooseUs, contactInfo, socialLinks, testimonials, logoUrl: cms.logoUrl || defaultLogoUrl, about, privacyPolicy, termsOfService, cookiesPolicy };
+  return { techStack, processSteps, whyChooseUs, contactInfo, socialLinks, testimonials, logoUrl: sanitizeLogoUrl(cms.logoUrl), about, privacyPolicy, termsOfService, cookiesPolicy };
 }
 
 const ContentContext = createContext<ContentContextType | undefined>(undefined);
@@ -568,7 +571,7 @@ export function ContentProvider({ children }: { children: React.ReactNode }) {
     const cachedCms = apiCache.get(CACHE_KEY) as any;
     if (cachedCms) {
       const mapped = mapCmsToState(cachedCms);
-      setLogoUrl(mapped.logoUrl || defaultLogoUrl);
+      setLogoUrl(sanitizeLogoUrl(mapped.logoUrl));
       if (mapped.techStack.length > 0) setTechStack(mapped.techStack);
       if (mapped.processSteps.length > 0) setProcessSteps(mapped.processSteps);
       setWhyChooseUs(mapped.whyChooseUs);
@@ -589,7 +592,7 @@ export function ContentProvider({ children }: { children: React.ReactNode }) {
       if (!cms) return;
       apiCache.set(CACHE_KEY, cms, TTL.TEN_MIN);
       const mapped = mapCmsToState(cms);
-      setLogoUrl(mapped.logoUrl || defaultLogoUrl);
+      setLogoUrl(sanitizeLogoUrl(mapped.logoUrl));
       if (mapped.techStack.length > 0) setTechStack(mapped.techStack);
       if (mapped.processSteps.length > 0) setProcessSteps(mapped.processSteps);
       setWhyChooseUs(mapped.whyChooseUs);
