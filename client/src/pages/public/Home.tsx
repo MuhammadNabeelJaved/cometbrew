@@ -168,7 +168,7 @@ export default function Home() {
             {/* Right Side - Vertical Scroll Animation */}
             <div className="relative h-[400px] sm:h-[500px] lg:h-[600px] overflow-hidden rounded-3xl bg-gradient-to-br from-card/30 to-card/10 dark:from-white/5 dark:to-white/0 border border-border/50 dark:border-white/10 p-4 sm:p-6 md:p-8 shadow-2xl backdrop-blur-sm">
                
-               <div className="grid grid-cols-2 gap-6 h-full">
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 h-full">
                  {/* Column 1 - Scroll Up */}
                  <div className="flex flex-col animate-scroll-vertical gap-6">
                    {[...whyChooseUs.features, ...whyChooseUs.features, ...whyChooseUs.features].map((f, i) => (
@@ -177,7 +177,7 @@ export default function Home() {
                  </div>
                  
                  {/* Column 2 - Scroll Down (Reverse) */}
-                 <div className="flex flex-col animate-scroll-vertical-reverse gap-6 -mt-32">
+                 <div className="hidden sm:flex flex-col animate-scroll-vertical-reverse gap-6 -mt-32">
                    {[...whyChooseUs.features, ...whyChooseUs.features, ...whyChooseUs.features].map((f, i) => (
                      <FeatureCard key={`col2-${i}`} title={f.title} icon={getIcon(f.iconName)} desc={f.desc} />
                    ))}
