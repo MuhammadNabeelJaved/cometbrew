@@ -13,4 +13,4 @@ Disallow: /page-loader
 Disallow: /style-guide
 
 # Sitemap
-Sitemap: https://www.cometbrew.com/sitemap.xml
+Sitemap: https://cometbrew.com/sitemap.xml

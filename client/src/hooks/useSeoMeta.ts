@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { seoApi, SeoMetaEntry } from '../api/seo.api';
 
-const BASE_URL = 'https://www.cometbrew.com';
+const BASE_URL = 'https://cometbrew.com';
 
 const PAGE_DEFAULTS: Record<string, { title: string; description: string; keywords?: string }> = {
     '/': {

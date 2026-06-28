@@ -118,7 +118,7 @@ import Services from "./models/usersModels/Services.model.js";
 import AdminProject from "./models/usersModels/AdminProject.model.js";
 
 app.get("/sitemap.xml", async (req, res) => {
-    const BASE = "https://www.cometbrew.com";
+    const BASE = "https://cometbrew.com";
     const today = new Date().toISOString().split("T")[0];
 
     const staticUrls = [
