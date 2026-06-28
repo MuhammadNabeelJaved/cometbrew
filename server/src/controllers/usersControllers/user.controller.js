@@ -151,9 +151,24 @@ export const verifyUserEmail = asyncHandler(async (req, res) => {
     user.isVerified = true;
     user.emailVerificationToken = undefined;
     user.emailVerificationExpires = undefined;
+    user.lastLoginAt = new Date();
     await user.save({ validateBeforeSave: false });
 
-    successResponse(res, "Email verified successfully", null, 200);
+    // Issue auth tokens so the client can auto-login after verification
+    const { accessToken, refreshToken } = await generateTokens(user);
+    setAuthCookies(res, accessToken, refreshToken);
+
+    successResponse(res, "Email verified successfully", {
+        user: {
+            _id:        user._id,
+            name:       user.name,
+            email:      user.email,
+            role:       user.role,
+            isVerified: true,
+            photo:      user.photo || null,
+        },
+        accessToken,
+    }, 200);
 
     // Send welcome email non-blocking
     sendSignupConfirmation({ to: user.email, name: user.name }).catch(() => {});

@@ -15,7 +15,7 @@ import { AxiosError } from 'axios';
 export default function Verification() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, loginWithToken } = useAuth();
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [activeOtpIndex, setActiveOtpIndex] = useState(0);
@@ -92,15 +92,24 @@ export default function Verification() {
     const code = otp.join('');
 
     try {
-      await authApi.verifyEmail(email, code);
+      const res = await authApi.verifyEmail(email, code);
+      const data = res.data?.data as { user?: { _id: string; name: string; email: string; role: 'admin' | 'team' | 'user'; isVerified: boolean; photo?: string }; accessToken?: string } | null;
 
-      // Mark user as verified in context + localStorage
-      updateUser({ isVerified: true });
+      if (data?.user) {
+        // Backend returned full user + tokens — use loginWithToken so OAuth users
+        // (who were never stored in context) get properly authenticated.
+        loginWithToken(data.user, data.accessToken);
+      } else {
+        // Fallback for already-authenticated users (email/password signup flow)
+        updateUser({ isVerified: true });
+      }
+
       setIsSuccess(true);
 
       // Navigate to correct dashboard after short delay
+      const role = data?.user?.role ?? user?.role ?? 'user';
       setTimeout(() => {
-        navigate(getDashboardPath(user?.role ?? 'user'), { replace: true });
+        navigate(getDashboardPath(role), { replace: true });
       }, 1200);
     } catch (err) {
       const msg = (err as AxiosError<{ message: string }>).response?.data?.message
