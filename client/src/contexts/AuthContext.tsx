@@ -68,9 +68,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    authApi
-      .getProfile(stored._id)
+    // Use axios directly (not apiClient) so the global 401 interceptor doesn't fire
+    // here. The interceptor's "refresh + window.location redirect" logic can race
+    // with loginFromOAuth/loginWithToken (OAuth callback) and log out a user who
+    // just authenticated via a different flow.
+    axios
+      .get(`${API_BASE}/api/v1/users/profile/${stored._id}`, { withCredentials: true })
       .then(async (res) => {
+        // A new user may have logged in (OAuth callback) while this was in-flight.
+        // If so, leave their session untouched.
+        if (getStoredUser()?._id !== stored._id) return;
         persistUser(res.data.data);
         // Grab a fresh access token for socket auth (non-blocking — failure is OK)
         try {
@@ -87,6 +94,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       })
       .catch((err: AxiosError) => {
+        // Same guard: don't disturb a newly-set user's session.
+        if (getStoredUser()?._id !== stored._id) return;
         if ((err.response?.status ?? 0) !== 401) {
           // Keep user in state on non-auth errors
         } else {
