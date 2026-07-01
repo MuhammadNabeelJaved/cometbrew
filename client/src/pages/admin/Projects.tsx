@@ -18,6 +18,7 @@ import ConfirmDeleteDialog from '../../components/ui/ConfirmDeleteDialog';
 import { useBulkSelect } from '../../hooks/useBulkSelect';
 import { useDataRealtime } from '../../hooks/useDataRealtime';
 import { BulkActionBar } from '../../components/BulkActionBar';
+import { techName } from '../../lib/utils';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -100,7 +101,7 @@ function projectToForm(p: any): ProjectForm {
     yourRole: p.yourRole || '',
     projectDescription: p.projectDescription || '',
     projectLink: p.projectLink || '',
-    techStack: (p.techStack || []).join(', '),
+    techStack: (p.techStack || []).map(techName).filter(Boolean).join(', '),
     tags: (p.tags || []).join(', '),
     isPublic: p.isPublic ?? true,
     startDate: p.startDate ? p.startDate.substring(0, 10) : '',
@@ -435,7 +436,7 @@ export default function Projects() {
                           )}
                           <div>
                             <div className="font-medium line-clamp-1">{project.projectTitle}</div>
-                            <div className="text-xs text-muted-foreground line-clamp-1">{(project.techStack || []).slice(0, 3).join(', ')}</div>
+                            <div className="text-xs text-muted-foreground line-clamp-1">{(project.techStack || []).slice(0, 3).map(techName).filter(Boolean).join(', ')}</div>
                           </div>
                         </div>
                       </TableCell>
@@ -739,7 +740,7 @@ export default function Projects() {
                 <div>
                   <span className="text-muted-foreground text-sm">Tech Stack</span>
                   <div className="flex flex-wrap gap-2 mt-2">
-                    {viewProject.techStack.map((t: string) => <Badge key={t} variant="outline">{t}</Badge>)}
+                    {viewProject.techStack.map(techName).filter(Boolean).map((t: string) => <Badge key={t} variant="outline">{t}</Badge>)}
                   </div>
                 </div>
               )}

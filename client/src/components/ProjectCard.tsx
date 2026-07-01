@@ -7,6 +7,7 @@ import { ArrowUpRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Badge } from './ui/badge';
+import { techName } from '../lib/utils';
 
 interface ProjectCardProps {
   title: string;
@@ -78,7 +79,7 @@ export function ProjectCard({ title, category, image, tags, slug, onClick }: Pro
               <div className="flex flex-wrap gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-200">
                 {tags.slice(0, 3).map((tag, i) => (
                   <span key={i} className="text-xs font-medium text-gray-400 bg-black/30 px-2 py-1 rounded-md border border-white/5 backdrop-blur-sm">
-                    #{tag}
+                    #{techName(tag)}
                   </span>
                 ))}
               </div>

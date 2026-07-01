@@ -11,6 +11,7 @@ import { FAQSection } from '../../components/FAQSection';
 import { Button } from '../../components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { adminProjectsApi } from '../../api/adminProjects.api';
+import { techName } from '../../lib/utils';
 
 export default function Portfolio() {
   useSeoMeta('/portfolio');
@@ -119,7 +120,7 @@ export default function Portfolio() {
                 {filteredProjects.map((project: any) => {
                   const id = project._id || project.id;
                   const image = project.coverImage || (project.projectGallery && project.projectGallery[0]?.url) || 'https://placehold.co/800x600/1a1a2e/ffffff?text=Project';
-                  const tags = project.techStack || project.tags || [];
+                  const tags = (project.techStack || project.tags || []).map(techName).filter(Boolean);
                   return (
                     <motion.div
                       key={id}

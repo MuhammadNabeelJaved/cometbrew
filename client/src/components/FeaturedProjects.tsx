@@ -11,6 +11,7 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { ProjectCard } from './ProjectCard';
 import { adminProjectsApi } from '../api/adminProjects.api';
+import { techName } from '../lib/utils';
 
 export function FeaturedProjects() {
   const [projects, setProjects] = useState<any[]>([]);
@@ -117,7 +118,7 @@ export function FeaturedProjects() {
         {/* Mobile Stack Layout (Hidden on Desktop) */}
         <div className="grid grid-cols-1 gap-8 lg:hidden">
           {projects.map((project) => (
-            <ProjectCard key={project._id} {...project} slug={project._id} title={project.projectTitle} category={project.category} description={project.projectDescription} image={typeof project.projectGallery?.[0] === 'string' ? project.projectGallery[0] : project.projectGallery?.[0]?.url || ''} tags={project.techStack || []} />
+            <ProjectCard key={project._id} {...project} slug={project._id} title={project.projectTitle} category={project.category} description={project.projectDescription} image={typeof project.projectGallery?.[0] === 'string' ? project.projectGallery[0] : project.projectGallery?.[0]?.url || ''} tags={(project.techStack || []).map(techName).filter(Boolean)} />
           ))}
         </div>
 
@@ -135,7 +136,7 @@ function AccordionItem({ project, isActive, onHover }: { project: any, isActive:
     ? firstGalleryItem
     : firstGalleryItem?.url || project.image || '';
   const image = rawImage || PLACEHOLDER;
-  const tags: string[] = project.techStack || project.tags || [];
+  const tags: string[] = (project.techStack || project.tags || []).map(techName).filter(Boolean);
   const year = project.endDate ? new Date(project.endDate).getFullYear().toString() : (project.year || '');
   const slug = project._id || project.slug;
 
