@@ -14,6 +14,7 @@ import { motion, useScroll, useTransform } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Code2, Globe, Share2, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { cn } from '../../lib/utils';
+import { adminProjectsApi } from '../../api/adminProjects.api';
 
 
 // --- Sub-Components ---
@@ -111,10 +112,9 @@ export default function ProjectDetail() {
     if (!slug) return;
     setIsLoading(true);
     setHasError(false);
-    fetch(`/api/v1/admin/projects/public/${slug}`)
-      .then(r => r.json())
-      .then(json => {
-        if (json?.data) setProject(json.data);
+    adminProjectsApi.getPublicById(slug)
+      .then(res => {
+        if (res.data?.data) setProject(res.data.data);
         else setHasError(true);
       })
       .catch(() => setHasError(true))

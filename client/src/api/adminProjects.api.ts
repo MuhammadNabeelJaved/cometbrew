@@ -6,6 +6,7 @@ export const adminProjectsApi = {
   // _nc = no-cache buster; prevents any browser-level caching on top of the no-store header
   getHomeFeatured: () => apiClient.get(`/admin/projects/home-featured?_nc=${Date.now()}`),
   getById: (id: string) => apiClient.get(`/admin/projects/${id}`),
+  getPublicById: (id: string) => apiClient.get(`/admin/projects/public/${id}`),
   create: (data: any) => apiClient.post('/admin/projects', data),
   update: (id: string, data: any) => apiClient.put(`/admin/projects/${id}`, data),
   updateStatus: (id: string, status: string) => apiClient.patch(`/admin/projects/${id}/status`, { status }),
