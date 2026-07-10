@@ -13,7 +13,7 @@ import { useParams, Link } from 'react-router-dom';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Code2, Globe, Share2, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 import { Button } from '../../components/ui/button';
-import { cn, techName } from '../../lib/utils';
+import { cn, techName, optimizeCloudinaryUrl } from '../../lib/utils';
 import { adminProjectsApi } from '../../api/adminProjects.api';
 
 
@@ -143,7 +143,7 @@ export default function ProjectDetail() {
     );
   }
 
-  const gallery: string[] = (project.projectGallery || []).map((g: any) => g.url || g).filter(Boolean);
+  const gallery: string[] = (project.projectGallery || []).map((g: any) => optimizeCloudinaryUrl(g.url || g, 1600)).filter(Boolean);
   const heroImage = gallery[0] || PLACEHOLDER;
   const techItems = (project.techStack || []).map((item: unknown) => ({ name: techName(item) })).filter((t: { name: string }) => t.name);
   const year = project.startDate ? new Date(project.startDate).getFullYear() : new Date().getFullYear();

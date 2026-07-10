@@ -7,7 +7,7 @@ import { ArrowUpRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Badge } from './ui/badge';
-import { techName } from '../lib/utils';
+import { techName, optimizeCloudinaryUrl } from '../lib/utils';
 
 interface ProjectCardProps {
   title: string;
@@ -33,8 +33,10 @@ export function ProjectCard({ title, category, image, tags, slug, onClick }: Pro
         {/* Fallback gradient shown behind image */}
         <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-purple-900/40 to-slate-900" />
         <img
-          src={image || 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=2070&auto=format&fit=crop'}
+          src={optimizeCloudinaryUrl(image) || 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=2070&auto=format&fit=crop'}
           alt={title}
+          loading="lazy"
+          decoding="async"
           onError={(e) => { (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=2070&auto=format&fit=crop'; }}
           className="relative z-10 object-cover w-full h-full transform group-hover:scale-110 transition-transform duration-700 ease-out will-change-transform"
         />

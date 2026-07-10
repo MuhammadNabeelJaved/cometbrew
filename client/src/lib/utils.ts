@@ -19,3 +19,16 @@ export function techName(item: unknown): string {
   }
   return "";
 }
+
+/**
+ * Rewrite a Cloudinary delivery URL to serve an auto-format, auto-quality,
+ * width-capped version. Raw uploads can be multi-MB (one portfolio image was
+ * 7.3 MB); this makes Cloudinary transcode to WebP/AVIF at display size.
+ * Non-Cloudinary URLs and already-transformed URLs pass through unchanged.
+ */
+export function optimizeCloudinaryUrl(url: string, width = 800): string {
+  if (!url || !url.includes("res.cloudinary.com") || !url.includes("/upload/")) return url;
+  const [prefix, suffix] = url.split("/upload/");
+  if (/^(f_|q_|w_|c_)/.test(suffix)) return url; // already transformed
+  return `${prefix}/upload/f_auto,q_auto,w_${width},c_limit/${suffix}`;
+}

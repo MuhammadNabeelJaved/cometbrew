@@ -29,7 +29,36 @@ export const apiCache = {
   clear(): void {
     _cache.clear();
   },
+
+  /**
+   * Read a value persisted in localStorage. Unlike the in-memory cache,
+   * expired entries are still returned with `stale: true` so callers can
+   * render last-known data instantly while revalidating in the background.
+   */
+  getPersistent(key: string): { data: unknown; stale: boolean } | null {
+    try {
+      const raw = localStorage.getItem(PERSIST_PREFIX + key);
+      if (!raw) return null;
+      const entry = JSON.parse(raw) as CacheEntry;
+      return { data: entry.data, stale: Date.now() > entry.expiresAt };
+    } catch {
+      return null;
+    }
+  },
+
+  setPersistent(key: string, data: unknown, ttlMs: number): void {
+    try {
+      localStorage.setItem(
+        PERSIST_PREFIX + key,
+        JSON.stringify({ data, expiresAt: Date.now() + ttlMs })
+      );
+    } catch {
+      // localStorage full or unavailable — persistence is best-effort
+    }
+  },
 };
+
+const PERSIST_PREFIX = 'apicache:';
 
 /** Convenience TTL constants in milliseconds */
 export const TTL = {

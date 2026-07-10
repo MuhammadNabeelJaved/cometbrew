@@ -566,68 +566,85 @@ export function ContentProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('heroContent', JSON.stringify(content));
   };
 
+  const applyCms = useCallback((cms: any) => {
+    const mapped = mapCmsToState(cms);
+    setLogoUrl(sanitizeLogoUrl(mapped.logoUrl));
+    if (mapped.techStack.length > 0) setTechStack(mapped.techStack);
+    if (mapped.processSteps.length > 0) setProcessSteps(mapped.processSteps);
+    setWhyChooseUs(mapped.whyChooseUs);
+    setContactInfo(mapped.contactInfo);
+    setSocialLinks(mapped.socialLinks);
+    setTestimonials(mapped.testimonials);
+    setAbout(mapped.about);
+    setPrivacyPolicy(mapped.privacyPolicy);
+    setTermsOfService(mapped.termsOfService);
+    setCookiesPolicy(mapped.cookiesPolicy);
+    setGlobalTheme(cms.globalTheme ?? null);
+  }, []);
+
   const fetchCMS = useCallback(async () => {
     const CACHE_KEY = 'cms:main';
     const cachedCms = apiCache.get(CACHE_KEY) as any;
     if (cachedCms) {
-      const mapped = mapCmsToState(cachedCms);
-      setLogoUrl(sanitizeLogoUrl(mapped.logoUrl));
-      if (mapped.techStack.length > 0) setTechStack(mapped.techStack);
-      if (mapped.processSteps.length > 0) setProcessSteps(mapped.processSteps);
-      setWhyChooseUs(mapped.whyChooseUs);
-      setContactInfo(mapped.contactInfo);
-      setSocialLinks(mapped.socialLinks);
-      setTestimonials(mapped.testimonials);
-      setAbout(mapped.about);
-      setPrivacyPolicy(mapped.privacyPolicy);
-      setTermsOfService(mapped.termsOfService);
-      setCookiesPolicy(mapped.cookiesPolicy);
-      setGlobalTheme(cachedCms.globalTheme ?? null);
+      applyCms(cachedCms);
       setIsLoading(false);
       return;
+    }
+    // Stale-while-revalidate: render last-known CMS content instantly from
+    // localStorage (even if expired), then refresh from the network below.
+    const persisted = apiCache.getPersistent(CACHE_KEY);
+    if (persisted?.data) {
+      applyCms(persisted.data);
+      setIsLoading(false);
     }
     try {
       const res = await cmsApi.get();
       const cms = res.data.data;
       if (!cms) return;
       apiCache.set(CACHE_KEY, cms, TTL.TEN_MIN);
-      const mapped = mapCmsToState(cms);
-      setLogoUrl(sanitizeLogoUrl(mapped.logoUrl));
-      if (mapped.techStack.length > 0) setTechStack(mapped.techStack);
-      if (mapped.processSteps.length > 0) setProcessSteps(mapped.processSteps);
-      setWhyChooseUs(mapped.whyChooseUs);
-      setContactInfo(mapped.contactInfo);
-      setSocialLinks(mapped.socialLinks);
-      setTestimonials(mapped.testimonials);
-      setAbout(mapped.about);
-      setPrivacyPolicy(mapped.privacyPolicy);
-      setTermsOfService(mapped.termsOfService);
-      setCookiesPolicy(mapped.cookiesPolicy);
-      setGlobalTheme(cms.globalTheme ?? null);
+      apiCache.setPersistent(CACHE_KEY, cms, TTL.TEN_MIN);
+      applyCms(cms);
     } catch {
       // Keep defaults on error
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [applyCms]);
 
   const fetchNavLinks = useCallback(() => {
+    const persisted = apiCache.getPersistent('cms:nav-links');
+    if (persisted?.data) setNavLinks(persisted.data as any[]);
     cmsApi.getNavLinks()
-      .then(res => setNavLinks((res.data as any).data?.navLinks ?? []))
+      .then(res => {
+        const links = (res.data as any).data?.navLinks ?? [];
+        apiCache.setPersistent('cms:nav-links', links, TTL.TEN_MIN);
+        setNavLinks(links);
+      })
       .catch(() => {});
   }, []);
 
   const fetchFooterSections = useCallback(() => {
+    const persisted = apiCache.getPersistent('cms:footer-sections');
+    if (persisted?.data) setFooterSections(persisted.data as any[]);
     cmsApi.getFooterSections()
-      .then(res => setFooterSections((res.data as any).data?.footerSections ?? []))
+      .then(res => {
+        const sections = (res.data as any).data?.footerSections ?? [];
+        apiCache.setPersistent('cms:footer-sections', sections, TTL.TEN_MIN);
+        setFooterSections(sections);
+      })
       .catch(() => {});
   }, []);
 
   const fetchFooterBottom = useCallback(() => {
+    const persisted = apiCache.getPersistent('cms:footer-bottom');
+    if (persisted?.data) setFooterBottom(persisted.data as any);
     cmsApi.getFooterBottom()
       .then(res => {
         const d = (res.data as any).data?.footerBottom;
-        if (d) setFooterBottom(d);
+        if (d) {
+          apiCache.setPersistent('cms:footer-bottom', d, TTL.TEN_MIN);
+          setFooterBottom(d);
+        }
       })
       .catch(() => {});
   }, []);
@@ -639,10 +656,13 @@ export function ContentProvider({ children }: { children: React.ReactNode }) {
       setPageStatuses(cached as PageStatusItem[]);
       return;
     }
+    const persisted = apiCache.getPersistent(CACHE_KEY);
+    if (persisted?.data) setPageStatuses(persisted.data as PageStatusItem[]);
     pageStatusApi.getAll()
       .then(res => {
         const data = res.data.data ?? [];
         apiCache.set(CACHE_KEY, data, TTL.TWO_MIN);
+        apiCache.setPersistent(CACHE_KEY, data, TTL.TWO_MIN);
         setPageStatuses(data);
       })
       .catch(() => {});
@@ -655,11 +675,17 @@ export function ContentProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const fetchAnnouncements = useCallback(() => {
+    const persistedBars = apiCache.getPersistent('announcement-bars:active');
+    if (persistedBars?.data) setAnnouncementBars(persistedBars.data as any[]);
     announcementsApi.getActive()
       .then(res => setAnnouncements((res.data as any).data ?? []))
       .catch(() => {});
     announcementBarsApi.getActive()
-      .then(res => setAnnouncementBars((res.data as any).data ?? []))
+      .then(res => {
+        const bars = (res.data as any).data ?? [];
+        apiCache.setPersistent('announcement-bars:active', bars, TTL.TEN_MIN);
+        setAnnouncementBars(bars);
+      })
       .catch(() => {});
     announcementsApi.getSettings()
       .then(res => {
