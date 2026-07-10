@@ -11,7 +11,7 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { ProjectCard } from './ProjectCard';
 import { adminProjectsApi } from '../api/adminProjects.api';
-import { techName } from '../lib/utils';
+import { techName, optimizeCloudinaryUrl } from '../lib/utils';
 
 export function FeaturedProjects() {
   const [projects, setProjects] = useState<any[]>([]);
@@ -153,8 +153,10 @@ function AccordionItem({ project, isActive, onHover }: { project: any, isActive:
       {/* Fallback gradient background when no image */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-purple-900/40 to-slate-900" />
       <img
-        src={image}
+        src={optimizeCloudinaryUrl(image, 1200)}
         alt={title}
+        loading="lazy"
+        decoding="async"
         onError={(e) => { (e.currentTarget as HTMLImageElement).src = PLACEHOLDER; }}
         className="absolute inset-0 w-full h-full object-cover transform transition-transform duration-1000"
         style={{ transform: isActive ? 'scale(1.1)' : 'scale(1.3)' }}
