@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { io as socketIO } from 'socket.io-client';
+import { toast } from 'sonner';
 import { apiCache, TTL } from '../lib/apiCache';
 import { cmsApi } from '../api/cms.api';
 import { pageStatusApi, type PageStatusItem } from '../api/pageStatus.api';
@@ -773,10 +774,24 @@ export function ContentProvider({ children }: { children: React.ReactNode }) {
     apiCache.invalidatePersistent('cms:main');
   };
 
+  // ContentEditor inputs call update* on every keystroke. State updates stay
+  // instant, but the PUT for each endpoint is coalesced to one request per
+  // typing pause instead of one per character.
+  const saveTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const debouncedSave = (key: string, save: () => Promise<unknown>, delay = 600) => {
+    const timers = saveTimersRef.current;
+    const existing = timers.get(key);
+    if (existing) clearTimeout(existing);
+    timers.set(key, setTimeout(() => {
+      timers.delete(key);
+      save().catch(() => toast.error('Failed to save changes — please check your connection and retry'));
+    }, delay));
+  };
+
   const updateLogoUrl = async (url: string) => {
     setLogoUrl(url);
     bustCmsCache();
-    await cmsApi.updateLogo(url);
+    debouncedSave('logo', () => cmsApi.updateLogo(url));
   };
 
   const updateTechStack = async (groups: TechGroup[]) => {
@@ -791,7 +806,7 @@ export function ContentProvider({ children }: { children: React.ReactNode }) {
         colorClass: item.color,
       })),
     }));
-    await cmsApi.updateTechStack(payload);
+    debouncedSave('tech-stack', () => cmsApi.updateTechStack(payload));
   };
 
   const updateProcessSteps = async (steps: ProcessStep[]) => {
@@ -805,19 +820,19 @@ export function ContentProvider({ children }: { children: React.ReactNode }) {
       bulletPoints: s.details,
       order: i,
     }));
-    await cmsApi.updateConceptToReality({ steps: payload });
+    debouncedSave('process-steps', () => cmsApi.updateConceptToReality({ steps: payload }));
   };
 
   const updateWhyChooseUs = async (content: WhyChooseUsContent) => {
     setWhyChooseUs(content);
     bustCmsCache();
-    await cmsApi.updateWhyChooseUs({
+    debouncedSave('why-choose-us', () => cmsApi.updateWhyChooseUs({
       titleLine1: content.titleLine1,
       titleLine2Highlighted: content.titleLine2,
       description: content.description,
       keyPoints: content.points,
       scrollingCards: content.features.map((f, i) => ({ title: f.title, iconName: f.iconName, description: f.desc, order: i })),
-    });
+    }));
   };
 
   const updateContactInfo = async (info: ContactInfo): Promise<ContactInfo> => {
@@ -846,7 +861,7 @@ export function ContentProvider({ children }: { children: React.ReactNode }) {
   const updateSocialLinks = async (links: SocialLinks) => {
     setSocialLinks(links);
     bustCmsCache();
-    await cmsApi.updateSocialLinks(links);
+    debouncedSave('social-links', () => cmsApi.updateSocialLinks(links));
   };
 
   const updateGlobalTheme = async (theme: 'dark' | 'light' | null) => {
@@ -857,47 +872,59 @@ export function ContentProvider({ children }: { children: React.ReactNode }) {
 
   const updateNavLinks = async (links: NavLinkItem[]) => {
     setNavLinks(links);
-    await cmsApi.updateNavLinks(links);
+    apiCache.invalidatePersistent('cms:nav-links');
+    debouncedSave('nav-links', () => cmsApi.updateNavLinks(links));
   };
 
   const updateFooterSections = async (sections: FooterSectionItem[]) => {
     setFooterSections(sections);
-    await cmsApi.updateFooterSections(sections);
+    apiCache.invalidatePersistent('cms:footer-sections');
+    debouncedSave('footer-sections', () => cmsApi.updateFooterSections(sections));
   };
 
+  // updateFooterBottom receives PARTIAL objects (one field per call), so a
+  // plain debounce would drop earlier fields when a later call cancels the
+  // timer — merge pending partials and send them together on flush.
+  const footerBottomPendingRef = useRef<Partial<FooterBottomContent>>({});
   const updateFooterBottom = async (data: Partial<FooterBottomContent>) => {
     setFooterBottom(prev => ({ ...prev, ...data }));
-    await cmsApi.updateFooterBottom(data);
+    apiCache.invalidatePersistent('cms:footer-bottom');
+    footerBottomPendingRef.current = { ...footerBottomPendingRef.current, ...data };
+    debouncedSave('footer-bottom', () => {
+      const payload = footerBottomPendingRef.current;
+      footerBottomPendingRef.current = {};
+      return cmsApi.updateFooterBottom(payload);
+    });
   };
 
   const updateTestimonials = async (items: Testimonial[]) => {
     setTestimonials(items);
     bustCmsCache();
-    await cmsApi.updateTestimonials(items);
+    debouncedSave('testimonials', () => cmsApi.updateTestimonials(items));
   };
 
   const updateAbout = async (content: AboutContent) => {
     setAbout(content);
     bustCmsCache();
-    await cmsApi.updateAbout(content);
+    debouncedSave('about', () => cmsApi.updateAbout(content));
   };
 
   const updatePrivacyPolicy = async (content: PrivacyPolicyContent) => {
     setPrivacyPolicy(content);
     bustCmsCache();
-    await cmsApi.updatePrivacyPolicy(content);
+    debouncedSave('privacy-policy', () => cmsApi.updatePrivacyPolicy(content));
   };
 
   const updateTermsOfService = async (content: TermsContent) => {
     setTermsOfService(content);
     bustCmsCache();
-    await cmsApi.updateTermsOfService(content);
+    debouncedSave('terms', () => cmsApi.updateTermsOfService(content));
   };
 
   const updateCookiesPolicy = async (content: CookiesPolicyContent) => {
     setCookiesPolicy(content);
     bustCmsCache();
-    await cmsApi.updateCookiesPolicy(content);
+    debouncedSave('cookies-policy', () => cmsApi.updateCookiesPolicy(content));
   };
 
   return (
