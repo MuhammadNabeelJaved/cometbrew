@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { io as socketIO } from 'socket.io-client';
 import { apiCache, TTL } from '../lib/apiCache';
 import { cmsApi } from '../api/cms.api';
@@ -518,6 +518,16 @@ const ContentContext = createContext<ContentContextType | undefined>(undefined);
 
 export function ContentProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
+  // Tracks which localStorage seeds have already been applied. Each fetcher
+  // seeds from the persisted copy only ONCE (first load) — socket-triggered
+  // refetches after an admin edit must never re-apply stale data over
+  // freshly saved values.
+  const seededRef = useRef<Set<string>>(new Set());
+  const seedOnce = (key: string, apply: () => void) => {
+    if (seededRef.current.has(key)) return;
+    seededRef.current.add(key);
+    apply();
+  };
   const [logoUrl, setLogoUrl] = useState(defaultLogoUrl);
   const [techStack, setTechStack] = useState<TechGroup[]>(defaultTechStack);
   const [processSteps, setProcessSteps] = useState<ProcessStep[]>(defaultProcessSteps);
@@ -591,12 +601,16 @@ export function ContentProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     // Stale-while-revalidate: render last-known CMS content instantly from
-    // localStorage (even if expired), then refresh from the network below.
-    const persisted = apiCache.getPersistent(CACHE_KEY);
-    if (persisted?.data) {
-      applyCms(persisted.data);
-      setIsLoading(false);
-    }
+    // localStorage, then refresh from the network below. Only on the FIRST
+    // fetch — socket-triggered refetches after an admin edit must never
+    // re-apply the stale copy over freshly typed values.
+    seedOnce(CACHE_KEY, () => {
+      const persisted = apiCache.getPersistent(CACHE_KEY);
+      if (persisted?.data) {
+        applyCms(persisted.data);
+        setIsLoading(false);
+      }
+    });
     try {
       const res = await cmsApi.get();
       const cms = res.data.data;
@@ -612,8 +626,10 @@ export function ContentProvider({ children }: { children: React.ReactNode }) {
   }, [applyCms]);
 
   const fetchNavLinks = useCallback(() => {
-    const persisted = apiCache.getPersistent('cms:nav-links');
-    if (persisted?.data) setNavLinks(persisted.data as any[]);
+    seedOnce('cms:nav-links', () => {
+      const persisted = apiCache.getPersistent('cms:nav-links');
+      if (persisted?.data) setNavLinks(persisted.data as any[]);
+    });
     cmsApi.getNavLinks()
       .then(res => {
         const links = (res.data as any).data?.navLinks ?? [];
@@ -624,8 +640,10 @@ export function ContentProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const fetchFooterSections = useCallback(() => {
-    const persisted = apiCache.getPersistent('cms:footer-sections');
-    if (persisted?.data) setFooterSections(persisted.data as any[]);
+    seedOnce('cms:footer-sections', () => {
+      const persisted = apiCache.getPersistent('cms:footer-sections');
+      if (persisted?.data) setFooterSections(persisted.data as any[]);
+    });
     cmsApi.getFooterSections()
       .then(res => {
         const sections = (res.data as any).data?.footerSections ?? [];
@@ -636,8 +654,10 @@ export function ContentProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const fetchFooterBottom = useCallback(() => {
-    const persisted = apiCache.getPersistent('cms:footer-bottom');
-    if (persisted?.data) setFooterBottom(persisted.data as any);
+    seedOnce('cms:footer-bottom', () => {
+      const persisted = apiCache.getPersistent('cms:footer-bottom');
+      if (persisted?.data) setFooterBottom(persisted.data as any);
+    });
     cmsApi.getFooterBottom()
       .then(res => {
         const d = (res.data as any).data?.footerBottom;
@@ -656,8 +676,10 @@ export function ContentProvider({ children }: { children: React.ReactNode }) {
       setPageStatuses(cached as PageStatusItem[]);
       return;
     }
-    const persisted = apiCache.getPersistent(CACHE_KEY);
-    if (persisted?.data) setPageStatuses(persisted.data as PageStatusItem[]);
+    seedOnce(CACHE_KEY, () => {
+      const persisted = apiCache.getPersistent(CACHE_KEY);
+      if (persisted?.data) setPageStatuses(persisted.data as PageStatusItem[]);
+    });
     pageStatusApi.getAll()
       .then(res => {
         const data = res.data.data ?? [];
@@ -675,8 +697,10 @@ export function ContentProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const fetchAnnouncements = useCallback(() => {
-    const persistedBars = apiCache.getPersistent('announcement-bars:active');
-    if (persistedBars?.data) setAnnouncementBars(persistedBars.data as any[]);
+    seedOnce('announcement-bars:active', () => {
+      const persistedBars = apiCache.getPersistent('announcement-bars:active');
+      if (persistedBars?.data) setAnnouncementBars(persistedBars.data as any[]);
+    });
     announcementsApi.getActive()
       .then(res => setAnnouncements((res.data as any).data ?? []))
       .catch(() => {});
@@ -741,9 +765,13 @@ export function ContentProvider({ children }: { children: React.ReactNode }) {
     };
   }, [fetchCMS, fetchNavLinks, fetchFooterSections, fetchFooterBottom, fetchPageStatuses, fetchAnnouncements, fetchDashboardBars]);
 
-  // Invalidate the CMS cache before every write so the socket-triggered
-  // fetchCMS() always fetches fresh server data instead of reverting to stale cache.
-  const bustCmsCache = () => apiCache.invalidate('cms:main');
+  // Invalidate the CMS cache (in-memory AND persisted) before every write so
+  // the socket-triggered fetchCMS() always fetches fresh server data instead
+  // of reverting to stale cache.
+  const bustCmsCache = () => {
+    apiCache.invalidate('cms:main');
+    apiCache.invalidatePersistent('cms:main');
+  };
 
   const updateLogoUrl = async (url: string) => {
     setLogoUrl(url);

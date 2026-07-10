@@ -56,6 +56,16 @@ export const apiCache = {
       // localStorage full or unavailable — persistence is best-effort
     }
   },
+
+  invalidatePersistent(keyPrefix: string): void {
+    try {
+      for (const key of Object.keys(localStorage)) {
+        if (key.startsWith(PERSIST_PREFIX + keyPrefix)) localStorage.removeItem(key);
+      }
+    } catch {
+      // localStorage unavailable — nothing to invalidate
+    }
+  },
 };
 
 const PERSIST_PREFIX = 'apicache:';
