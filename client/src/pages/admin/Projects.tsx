@@ -2,7 +2,7 @@
  * Portfolio Projects Admin Page
  * Full CRUD for portfolio projects with real API integration.
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Plus, Search, Edit, Trash2, Eye, EyeOff, Globe, Lock, Loader2, X, Save, Image as ImageIcon, CheckSquare, Square, Star, Upload, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -25,6 +25,39 @@ import { techName } from '../../lib/utils';
 const CATEGORIES = ['Web App', 'Mobile App', 'Desktop App', 'API Development', 'UI/UX Design', 'Other'] as const;
 const STATUSES = ['Draft', 'In Progress', 'Review', 'Completed', 'On Hold', 'Cancelled'] as const;
 const PRIORITIES = ['Low', 'Medium', 'High', 'Urgent'] as const;
+
+const TECH_SUGGESTIONS = ['React', 'Next.js', 'TypeScript', 'Node.js', 'Express', 'MongoDB', 'PostgreSQL', 'Tailwind CSS', 'React Native', 'Flutter', 'Firebase', 'Supabase', 'Vue.js', 'Laravel', 'WordPress', 'Shopify', 'Python', 'Django', 'AWS', 'Docker', 'GraphQL', 'Stripe', 'Framer Motion', 'Figma'];
+const TAG_SUGGESTIONS = ['web app', 'mobile app', 'landing page', 'dashboard', 'e-commerce', 'saas', 'portfolio', 'cms', 'api', 'ai', 'fintech', 'healthcare', 'education', 'real estate', 'branding', 'ui/ux', 'redesign', 'seo'];
+
+/** Clickable suggestion chips that toggle items in a comma-separated input value. */
+function ChipPicker({ value, options, onChange }: { value: string; options: string[]; onChange: (v: string) => void }) {
+  const selected = value.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+  return (
+    <div className="flex flex-wrap gap-1.5 pt-1 max-h-24 overflow-y-auto">
+      {options.map(opt => {
+        const active = selected.includes(opt.toLowerCase());
+        return (
+          <button
+            key={opt}
+            type="button"
+            onClick={() => {
+              const parts = value.split(',').map(s => s.trim()).filter(Boolean);
+              const next = active ? parts.filter(p => p.toLowerCase() !== opt.toLowerCase()) : [...parts, opt];
+              onChange(next.join(', '));
+            }}
+            className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
+              active
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'bg-muted/30 text-muted-foreground border-border hover:text-foreground hover:border-primary/50'
+            }`}
+          >
+            {opt}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 interface ProjectForm {
   projectTitle: string;
@@ -343,6 +376,20 @@ export default function Projects() {
     }
   };
 
+  // Suggestions = presets + values already used across existing projects (deduped, case-insensitive)
+  const mergeOptions = (presets: string[], used: string[]) => {
+    const seen = new Set(presets.map(p => p.toLowerCase()));
+    return [...presets, ...used.filter(u => u && !seen.has(u.toLowerCase()) && seen.add(u.toLowerCase()))];
+  };
+  const techOptions = useMemo(
+    () => mergeOptions(TECH_SUGGESTIONS, [...new Set(projects.flatMap(p => (p.techStack || []).map(techName)))]),
+    [projects]
+  );
+  const tagOptions = useMemo(
+    () => mergeOptions(TAG_SUGGESTIONS, [...new Set<string>(projects.flatMap(p => p.tags || []))]),
+    [projects]
+  );
+
   const stats = {
     total: projects.length,
     public: projects.filter(p => p.isPublic).length,
@@ -586,13 +633,15 @@ export default function Projects() {
               </div>
 
               <div className="space-y-2">
-                <Label>Tech Stack <span className="text-muted-foreground text-xs">(comma separated)</span></Label>
+                <Label>Tech Stack <span className="text-muted-foreground text-xs">(click below or type)</span></Label>
                 <Input value={form.techStack} onChange={e => setField('techStack', e.target.value)} placeholder="React, TypeScript, Node.js, MongoDB" />
+                <ChipPicker value={form.techStack} options={techOptions} onChange={v => setField('techStack', v)} />
               </div>
 
               <div className="space-y-2">
-                <Label>Tags <span className="text-muted-foreground text-xs">(comma separated)</span></Label>
+                <Label>Tags <span className="text-muted-foreground text-xs">(click below or type)</span></Label>
                 <Input value={form.tags} onChange={e => setField('tags', e.target.value)} placeholder="fintech, dashboard, analytics" />
+                <ChipPicker value={form.tags} options={tagOptions} onChange={v => setField('tags', v)} />
               </div>
 
               <div className="space-y-2">
