@@ -11,7 +11,7 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { ProjectCard } from './ProjectCard';
 import { adminProjectsApi } from '../api/adminProjects.api';
-import { techName, optimizeCloudinaryUrl } from '../lib/utils';
+import { techName, optimizeCloudinaryUrl, projectSlug } from '../lib/utils';
 
 export function FeaturedProjects() {
   const [projects, setProjects] = useState<any[]>([]);
@@ -138,7 +138,7 @@ function AccordionItem({ project, isActive, onHover }: { project: any, isActive:
   const image = rawImage || PLACEHOLDER;
   const tags: string[] = (project.techStack || project.tags || []).map(techName).filter(Boolean);
   const year = project.endDate ? new Date(project.endDate).getFullYear().toString() : (project.year || '');
-  const slug = project._id || project.slug;
+  const slug = projectSlug(project);
 
   console.log("Images:", rawImage,)
 

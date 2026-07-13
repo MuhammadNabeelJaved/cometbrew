@@ -112,7 +112,9 @@ export default function ProjectDetail() {
     if (!slug) return;
     setIsLoading(true);
     setHasError(false);
-    adminProjectsApi.getPublicById(slug)
+    // URL format is "project-name-<mongoId>" (or a bare id from old links) — extract the trailing id
+    const id = slug.match(/[0-9a-f]{24}$/i)?.[0] || slug;
+    adminProjectsApi.getPublicById(id)
       .then(res => {
         if (res.data?.data) setProject(res.data.data);
         else setHasError(true);

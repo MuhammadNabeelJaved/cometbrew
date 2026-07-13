@@ -21,6 +21,19 @@ export function techName(item: unknown): string {
 }
 
 /**
+ * SEO-friendly public URL slug for a portfolio project: "project-name-<mongoId>".
+ * The trailing 24-hex id is what the detail page extracts for the API call,
+ * so plain-id URLs keep working.
+ */
+export function projectSlug(p: { _id: string; projectTitle?: string }): string {
+  const name = (p.projectTitle || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return name ? `${name}-${p._id}` : p._id;
+}
+
+/**
  * Rewrite a Cloudinary delivery URL to serve an auto-format, auto-quality,
  * width-capped version. Raw uploads can be multi-MB (one portfolio image was
  * 7.3 MB); this makes Cloudinary transcode to WebP/AVIF at display size.

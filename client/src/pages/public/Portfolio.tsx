@@ -11,7 +11,7 @@ import { FAQSection } from '../../components/FAQSection';
 import { Button } from '../../components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { adminProjectsApi } from '../../api/adminProjects.api';
-import { techName } from '../../lib/utils';
+import { techName, projectSlug } from '../../lib/utils';
 
 export default function Portfolio() {
   useSeoMeta('/portfolio');
@@ -119,6 +119,7 @@ export default function Portfolio() {
               <AnimatePresence mode="popLayout">
                 {filteredProjects.map((project: any) => {
                   const id = project._id || project.id;
+                  const slug = projectSlug({ _id: id, projectTitle: project.projectTitle });
                   const image = project.coverImage || (project.projectGallery && project.projectGallery[0]?.url) || 'https://placehold.co/800x600/1a1a2e/ffffff?text=Project';
                   const tags = (project.techStack || project.tags || []).map(techName).filter(Boolean);
                   return (
@@ -136,8 +137,8 @@ export default function Portfolio() {
                         category={project.category || 'Project'}
                         image={image}
                         tags={tags}
-                        slug={id}
-                        onClick={() => navigate(`/portfolio/${id}`)}
+                        slug={slug}
+                        onClick={() => navigate(`/portfolio/${slug}`)}
                       />
                     </motion.div>
                   );

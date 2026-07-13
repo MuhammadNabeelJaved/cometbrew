@@ -138,7 +138,7 @@ app.get("/sitemap.xml", async (req, res) => {
     try {
         const [services, projects] = await Promise.all([
             Services.find({ isActive: true }, "slug updatedAt").lean(),
-            AdminProject.find({ isPublic: true }, "_id updatedAt").lean(),
+            AdminProject.find({ isPublic: true }, "_id projectTitle updatedAt").lean(),
         ]);
         serviceUrls = services.map(s => ({
             loc: `/services/${s.slug}`,
@@ -146,12 +146,16 @@ app.get("/sitemap.xml", async (req, res) => {
             priority: "0.7",
             changefreq: "monthly",
         }));
-        projectUrls = projects.map(p => ({
-            loc: `/portfolio/${p._id}`,
+        projectUrls = projects.map(p => {
+            // Same "name-id" slug format the client generates (ProjectDetail extracts the trailing id)
+            const name = (p.projectTitle || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+            return {
+            loc: `/portfolio/${name ? `${name}-${p._id}` : p._id}`,
             lastmod: (p.updatedAt || new Date()).toISOString().split("T")[0],
             priority: "0.6",
             changefreq: "monthly",
-        }));
+            };
+        });
     } catch {/* DB unavailable — serve static only */}
 
     const allUrls = [
