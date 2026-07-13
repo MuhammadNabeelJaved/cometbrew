@@ -13,7 +13,7 @@ import { useParams, Link } from 'react-router-dom';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Code2, Globe, Share2, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 import { Button } from '../../components/ui/button';
-import { cn, techName, optimizeCloudinaryUrl } from '../../lib/utils';
+import { cn, techName, optimizeCloudinaryUrl, externalUrl } from '../../lib/utils';
 import { adminProjectsApi } from '../../api/adminProjects.api';
 
 
@@ -214,7 +214,7 @@ export default function ProjectDetail() {
             </h3>
             <div className="flex flex-wrap gap-4 pt-4">
               {project.projectLink && (
-                <a href={project.projectLink} target="_blank" rel="noopener noreferrer">
+                <a href={externalUrl(project.projectLink)} target="_blank" rel="noopener noreferrer">
                   <Button size="lg" className="rounded-full px-8 gap-2">
                     Visit Live Site <ExternalLink className="w-4 h-4" />
                   </Button>

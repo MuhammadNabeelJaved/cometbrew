@@ -21,6 +21,15 @@ export function techName(item: unknown): string {
 }
 
 /**
+ * Ensure an external link has a protocol — links stored as bare domains
+ * ("site.netlify.app") would otherwise resolve relative to the current page.
+ */
+export function externalUrl(url: string): string {
+  if (!url) return url;
+  return /^https?:\/\//i.test(url) ? url : `https://${url}`;
+}
+
+/**
  * SEO-friendly public URL slug for a portfolio project: "project-name-<mongoId>".
  * The trailing 24-hex id is what the detail page extracts for the API call,
  * so plain-id URLs keep working.

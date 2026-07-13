@@ -18,7 +18,7 @@ import ConfirmDeleteDialog from '../../components/ui/ConfirmDeleteDialog';
 import { useBulkSelect } from '../../hooks/useBulkSelect';
 import { useDataRealtime } from '../../hooks/useDataRealtime';
 import { BulkActionBar } from '../../components/BulkActionBar';
-import { techName } from '../../lib/utils';
+import { techName, externalUrl } from '../../lib/utils';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -110,7 +110,7 @@ function formToPayload(form: ProjectForm, userId: string) {
     priority: form.priority,
     yourRole: form.yourRole.trim(),
     projectDescription: form.projectDescription.trim(),
-    projectLink: form.projectLink.trim() || undefined,
+    projectLink: form.projectLink.trim() ? externalUrl(form.projectLink.trim()) : undefined,
     techStack: form.techStack.split(',').map(t => t.trim()).filter(Boolean),
     tags: form.tags.split(',').map(t => t.trim().toLowerCase()).filter(Boolean),
     isPublic: form.isPublic,
