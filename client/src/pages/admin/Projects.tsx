@@ -3,7 +3,7 @@
  * Full CRUD for portfolio projects with real API integration.
  */
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Search, Edit, Trash2, Eye, EyeOff, Globe, Lock, Loader2, X, Save, Image as ImageIcon, CheckSquare, Square, Star, Upload } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Eye, EyeOff, Globe, Lock, Loader2, X, Save, Image as ImageIcon, CheckSquare, Square, Star, Upload, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
@@ -326,6 +326,23 @@ export default function Projects() {
     }
   };
 
+  const moveGalleryImage = async (projectId: string, from: number, to: number) => {
+    const prev = projects.find(p => p._id === projectId)?.projectGallery || [];
+    if (to < 0 || to >= prev.length) return;
+    const gallery = [...prev];
+    const [img] = gallery.splice(from, 1);
+    gallery.splice(to, 0, img);
+    setProjects(ps => ps.map(p => p._id === projectId ? { ...p, projectGallery: gallery } : p));
+    setViewProject((v: any) => v && v._id === projectId ? { ...v, projectGallery: gallery } : v);
+    try {
+      await adminProjectsApi.update(projectId, { projectGallery: gallery });
+    } catch (err: any) {
+      setProjects(ps => ps.map(p => p._id === projectId ? { ...p, projectGallery: prev } : p));
+      setViewProject((v: any) => v && v._id === projectId ? { ...v, projectGallery: prev } : v);
+      showNotif('error', 'Reorder failed', err?.response?.data?.message);
+    }
+  };
+
   const stats = {
     total: projects.length,
     public: projects.filter(p => p.isPublic).length,
@@ -589,19 +606,39 @@ export default function Projects() {
                 {editingId && (() => {
                   const existing = projects.find(p => p._id === editingId)?.projectGallery || [];
                   return existing.length > 0 ? (
+                    <>
+                    <p className="text-xs text-muted-foreground">Image #1 = hero &amp; grid, #2–3 = grid. Use arrows to reorder — saved instantly.</p>
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-2">
-                      {existing.map((g: any) => (
+                      {existing.map((g: any, i: number) => (
                         <div key={g._id} className="group relative rounded-lg overflow-hidden border border-border aspect-video bg-muted">
                           <img src={g.url} alt="" className={`w-full h-full object-cover ${isDeletingImageId === g._id ? 'opacity-40' : ''}`} />
+                          <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded-md bg-black/70 text-white text-[10px] font-semibold leading-none">
+                            {i === 0 ? '1 · Hero' : i + 1}
+                          </span>
                           <button
                             type="button"
                             disabled={isDeletingImageId === g._id}
                             onClick={() => handleDeleteGalleryImage(editingId, g._id)}
                             className="absolute top-1 right-1 h-5 w-5 rounded-full bg-black/70 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                           ><X className="h-3 w-3" /></button>
+                          <div className="absolute bottom-1 inset-x-1 flex justify-between opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              type="button"
+                              disabled={i === 0}
+                              onClick={() => moveGalleryImage(editingId, i, i - 1)}
+                              className="h-5 w-5 rounded-full bg-black/70 text-white flex items-center justify-center disabled:opacity-30"
+                            ><ChevronLeft className="h-3 w-3" /></button>
+                            <button
+                              type="button"
+                              disabled={i === existing.length - 1}
+                              onClick={() => moveGalleryImage(editingId, i, i + 1)}
+                              className="h-5 w-5 rounded-full bg-black/70 text-white flex items-center justify-center disabled:opacity-30"
+                            ><ChevronRight className="h-3 w-3" /></button>
+                          </div>
                         </div>
                       ))}
                     </div>
+                    </>
                   ) : null;
                 })()}
 

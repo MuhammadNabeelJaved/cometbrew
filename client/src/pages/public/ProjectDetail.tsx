@@ -178,10 +178,13 @@ export default function ProjectDetail() {
               <span className="h-px w-12 bg-primary/80" />
               <span className="text-primary font-bold uppercase tracking-[0.2em] text-sm">Selected Case Study</span>
             </div>
-            <h1 className="text-5xl md:text-7xl lg:text-9xl font-black tracking-tighter text-white mb-6 leading-[0.9]">
-              {project.projectTitle.split(' ').map((word: string, i: number) => (
-                <span key={i} className="block">{word}</span>
-              ))}
+            <h1 className={cn(
+              "font-black tracking-tighter text-white mb-6 leading-[0.95] text-balance",
+              project.projectTitle.length > 28
+                ? "text-4xl md:text-5xl lg:text-7xl"
+                : "text-5xl md:text-7xl lg:text-9xl"
+            )}>
+              {project.projectTitle}
             </h1>
             <div className="flex flex-wrap items-center gap-6 mt-8 text-white/80">
               <div className="flex items-center gap-2"><Globe className="w-5 h-5" /><span>{project.category}</span></div>
