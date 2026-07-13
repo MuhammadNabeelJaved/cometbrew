@@ -591,8 +591,14 @@ export default function Projects() {
                   return existing.length > 0 ? (
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-2">
                       {existing.map((g: any) => (
-                        <div key={g._id} className="relative rounded-lg overflow-hidden border border-border aspect-video bg-muted">
-                          <img src={g.url} alt="" className="w-full h-full object-cover" />
+                        <div key={g._id} className="group relative rounded-lg overflow-hidden border border-border aspect-video bg-muted">
+                          <img src={g.url} alt="" className={`w-full h-full object-cover ${isDeletingImageId === g._id ? 'opacity-40' : ''}`} />
+                          <button
+                            type="button"
+                            disabled={isDeletingImageId === g._id}
+                            onClick={() => handleDeleteGalleryImage(editingId, g._id)}
+                            className="absolute top-1 right-1 h-5 w-5 rounded-full bg-black/70 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          ><X className="h-3 w-3" /></button>
                         </div>
                       ))}
                     </div>
@@ -626,12 +632,6 @@ export default function Projects() {
                     </div>
                   )}
                 </div>
-                {editingId && (
-                  <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                    <ImageIcon className="h-3.5 w-3.5 shrink-0" />
-                    To remove existing images, open this project with the <strong className="text-foreground">View (eye)</strong> button.
-                  </p>
-                )}
               </div>
 
               <div className="space-y-2">
