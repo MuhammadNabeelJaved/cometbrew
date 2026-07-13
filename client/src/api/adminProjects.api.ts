@@ -1,7 +1,8 @@
 import apiClient from './apiClient';
 
 export const adminProjectsApi = {
-  getAll: () => apiClient.get('/admin/projects'),
+  // limit=1000: admin page has no pagination UI and filters client-side — fetch everything
+  getAll: () => apiClient.get('/admin/projects?limit=1000'),
   getPortfolio: (bust = false) => apiClient.get(`/admin/projects/portfolio${bust ? `?_nc=${Date.now()}` : ''}`),
   // _nc = no-cache buster; prevents any browser-level caching on top of the no-store header
   getHomeFeatured: () => apiClient.get(`/admin/projects/home-featured?_nc=${Date.now()}`),
