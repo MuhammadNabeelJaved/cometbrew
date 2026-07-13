@@ -3,7 +3,7 @@
  * Full CRUD for portfolio projects with real API integration.
  */
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Plus, Search, Edit, Trash2, Eye, EyeOff, Globe, Lock, Loader2, X, Save, Image as ImageIcon, CheckSquare, Square, Star, Upload, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Eye, EyeOff, Globe, Lock, Loader2, X, Save, Image as ImageIcon, CheckSquare, Square, Star, Upload, ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
@@ -376,6 +376,36 @@ export default function Projects() {
     }
   };
 
+  // Featured projects in home page display order (must match server sort: featuredOrder asc, createdAt desc)
+  const featuredSorted = useMemo(
+    () => projects
+      .filter(p => p.featuredOnHome)
+      .sort((a, b) => (a.featuredOrder ?? 0) - (b.featuredOrder ?? 0) || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+    [projects]
+  );
+
+  const moveFeatured = async (project: any, dir: -1 | 1) => {
+    const from = featuredSorted.findIndex(p => p._id === project._id);
+    const to = from + dir;
+    if (from < 0 || to < 0 || to >= featuredSorted.length) return;
+    const reordered = [...featuredSorted];
+    const [item] = reordered.splice(from, 1);
+    reordered.splice(to, 0, item);
+    // Reassign sequential order to the whole featured list so positions stay deterministic
+    const orderById = new Map(reordered.map((p, i) => [p._id, i]));
+    setProjects(ps => ps.map(p => orderById.has(p._id) ? { ...p, featuredOrder: orderById.get(p._id) } : p));
+    try {
+      await Promise.all(
+        reordered
+          .filter((p, i) => (p.featuredOrder ?? 0) !== i)
+          .map(p => adminProjectsApi.update(p._id, { featuredOrder: orderById.get(p._id) }))
+      );
+    } catch (err: any) {
+      showNotif('error', 'Reorder failed', err?.response?.data?.message);
+      loadProjects();
+    }
+  };
+
   // Suggestions = presets + values already used across existing projects (deduped, case-insensitive)
   const mergeOptions = (presets: string[], used: string[]) => {
     const seen = new Set(presets.map(p => p.toLowerCase()));
@@ -519,13 +549,37 @@ export default function Projects() {
                         </button>
                       </TableCell>
                       <TableCell className="text-center">
-                        <button
-                          onClick={() => toggleFeaturedHome(project)}
-                          title={project.featuredOnHome ? 'Remove from home page' : 'Feature on home page'}
-                          className={`inline-flex items-center justify-center h-8 w-8 rounded-full transition-colors ${project.featuredOnHome ? 'text-amber-500 bg-amber-500/10 hover:bg-amber-500/20' : 'text-muted-foreground/40 hover:text-amber-500 hover:bg-amber-500/10'}`}
-                        >
-                          <Star className={`h-4 w-4 ${project.featuredOnHome ? 'fill-amber-500' : ''}`} />
-                        </button>
+                        <div className="inline-flex items-center gap-0.5">
+                          {project.featuredOnHome && (() => {
+                            const pos = featuredSorted.findIndex(p => p._id === project._id);
+                            return (
+                              <>
+                                <button
+                                  onClick={() => moveFeatured(project, -1)}
+                                  disabled={pos <= 0}
+                                  title="Move up on home page"
+                                  className="h-6 w-6 rounded-full inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-25"
+                                ><ChevronUp className="h-3.5 w-3.5" /></button>
+                                <span className="text-[10px] font-semibold text-amber-500 w-5">#{pos + 1}</span>
+                              </>
+                            );
+                          })()}
+                          <button
+                            onClick={() => toggleFeaturedHome(project)}
+                            title={project.featuredOnHome ? 'Remove from home page' : 'Feature on home page'}
+                            className={`inline-flex items-center justify-center h-8 w-8 rounded-full transition-colors ${project.featuredOnHome ? 'text-amber-500 bg-amber-500/10 hover:bg-amber-500/20' : 'text-muted-foreground/40 hover:text-amber-500 hover:bg-amber-500/10'}`}
+                          >
+                            <Star className={`h-4 w-4 ${project.featuredOnHome ? 'fill-amber-500' : ''}`} />
+                          </button>
+                          {project.featuredOnHome && (
+                            <button
+                              onClick={() => moveFeatured(project, 1)}
+                              disabled={featuredSorted.findIndex(p => p._id === project._id) >= featuredSorted.length - 1}
+                              title="Move down on home page"
+                              className="h-6 w-6 rounded-full inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-25"
+                            ><ChevronDown className="h-3.5 w-3.5" /></button>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center gap-2 justify-end">

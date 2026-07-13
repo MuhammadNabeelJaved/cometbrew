@@ -239,6 +239,12 @@ const projectSchema = new mongoose.Schema({
         index: true
     },
 
+    // Display position within the home page Featured Projects section (lower = first)
+    featuredOrder: {
+        type: Number,
+        default: 0
+    },
+
     // Reference to the originating client Project request (auto-populated on completion)
     sourceProjectId: {
         type: mongoose.Schema.Types.ObjectId,
