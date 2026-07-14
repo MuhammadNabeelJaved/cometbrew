@@ -17,6 +17,7 @@ import { ProfileDropdown, type ProfileMenuItem } from '../components/ProfileDrop
 import { AnnouncementBar } from '../components/AnnouncementBar';
 import { toast } from 'sonner';
 import { useNotifications } from '../hooks/useNotifications';
+import { DashboardChatbot } from '../components/DashboardChatbot';
 
 export function DashboardLayout() {
   const { theme, setTheme } = useTheme();
@@ -223,6 +224,8 @@ export function DashboardLayout() {
           <Outlet />
         </main>
       </div>
+
+      <DashboardChatbot mode="admin" />
     </div>
   );
 }

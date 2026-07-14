@@ -27,7 +27,7 @@ import { useChatbotDock, ChatbotDockTab } from './ChatbotDock';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type DashboardChatMode = 'user' | 'team';
+export type DashboardChatMode = 'user' | 'team' | 'admin';
 
 interface Message {
   id: string;
@@ -170,6 +170,17 @@ const MODE_CONFIG = {
     storageKey:   'dashboard-team-chat-session',
     enabledField: 'isTeamChatEnabled' as const,
     Icon:         Briefcase,
+  },
+  // Admin rides the team-chat endpoint (route allows admin role) with its own session
+  admin: {
+    botName:      'WEB AI',
+    subtitle:     'Admin Assistant',
+    description:  'Ask about projects, tasks, team & agency data',
+    gradient:     'from-violet-500 to-purple-600',
+    accentColor:  'text-violet-400',
+    storageKey:   'dashboard-admin-chat-session',
+    enabledField: 'isTeamChatEnabled' as const,
+    Icon:         Sparkles,
   },
 };
 
