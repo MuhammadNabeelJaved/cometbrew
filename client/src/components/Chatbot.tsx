@@ -22,6 +22,7 @@ import { io, Socket } from 'socket.io-client';
 import { Button } from './ui/button';
 import { cn } from '../lib/utils';
 import { streamChat, getPublicConfig, getChatHistory } from '../api/chatbot.api';
+import { useChatbotDock, ChatbotDockTab } from './ChatbotDock';
 import type { ChatMessage, PublicChatbotConfig } from '../api/chatbot.api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -213,6 +214,7 @@ export function Chatbot() {
   const navigate = useNavigate();
   const [isOpen,        setIsOpen]        = useState(false);
   const [isExpanded,    setIsExpanded]    = useState(false);
+  const { hidden, hide, show }            = useChatbotDock();
   const [input,         setInput]         = useState('');
   const [isLoading,     setIsLoading]     = useState(false);
   const [messages,      setMessages]      = useState<Message[]>([]);
@@ -972,25 +974,42 @@ export function Chatbot() {
 
       {/* Trigger Button */}
       <AnimatePresence>
-        {!isOpen && (
-          <motion.button
+        {!isOpen && !hidden && (
+          <motion.div
             initial={{ scale: 0, rotate: -180 }}
             animate={{ scale: 1, rotate: 0 }}
             exit={{ scale: 0, rotate: 180 }}
-            whileHover={{ scale: 1.1, rotate: 5 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={() => setIsOpen(true)}
-            className="fixed bottom-6 right-6 h-16 w-16 rounded-[2rem] bg-gradient-to-br from-primary to-purple-600 text-white shadow-2xl flex items-center justify-center z-50 group border-2 border-white/20"
+            className="fixed bottom-6 right-6 z-50 group"
           >
-            <div className="absolute inset-0 rounded-[2rem] bg-white/20 blur-md group-hover:blur-lg transition-all opacity-0 group-hover:opacity-100" />
-            <MessageCircle className="h-8 w-8 relative z-10" />
-            <span className="absolute top-0 right-0 h-4 w-4 bg-green-500 rounded-full border-2 border-background animate-pulse" />
-            <div className="absolute right-full mr-4 bg-background/80 backdrop-blur border border-border px-4 py-2 rounded-xl shadow-xl text-sm font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0 pointer-events-none">
-              Chat with {botName}
-              <div className="absolute top-1/2 -right-1.5 w-3 h-3 bg-background/80 border-t border-r border-border transform rotate-45 -translate-y-1/2" />
-            </div>
-          </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.1, rotate: 5 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setIsOpen(true)}
+              className="relative h-16 w-16 rounded-[2rem] bg-gradient-to-br from-primary to-purple-600 text-white shadow-2xl flex items-center justify-center border-2 border-white/20"
+            >
+              <div className="absolute inset-0 rounded-[2rem] bg-white/20 blur-md group-hover:blur-lg transition-all opacity-0 group-hover:opacity-100" />
+              <MessageCircle className="h-8 w-8 relative z-10" />
+              <span className="absolute top-0 right-0 h-4 w-4 bg-green-500 rounded-full border-2 border-background animate-pulse" />
+              <div className="absolute right-full mr-4 bg-background/80 backdrop-blur border border-border px-4 py-2 rounded-xl shadow-xl text-sm font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0 pointer-events-none">
+                Chat with {botName}
+                <div className="absolute top-1/2 -right-1.5 w-3 h-3 bg-background/80 border-t border-r border-border transform rotate-45 -translate-y-1/2" />
+              </div>
+            </motion.button>
+            {/* Hide-widget badge — appears on hover */}
+            <button
+              onClick={hide}
+              title="Hide chatbot"
+              className="absolute -top-1.5 -left-1.5 h-6 w-6 rounded-full bg-background border border-border shadow flex items-center justify-center text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </motion.div>
         )}
+      </AnimatePresence>
+
+      {/* Docked tab when hidden */}
+      <AnimatePresence>
+        {hidden && !isOpen && <ChatbotDockTab onClick={show} />}
       </AnimatePresence>
     </>
   );

@@ -23,6 +23,7 @@ import { Button } from './ui/button';
 import { cn } from '../lib/utils';
 import { streamUserChat, streamTeamChat, getPublicConfig, getMyHistory, getChatHistory, getDashboardConfig } from '../api/chatbot.api';
 import type { ChatMessage } from '../api/chatbot.api';
+import { useChatbotDock, ChatbotDockTab } from './ChatbotDock';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -187,6 +188,7 @@ export function DashboardChatbot({ mode }: DashboardChatbotProps) {
 
   const [isOpen,     setIsOpen]     = useState(false);
   const [expanded,   setExpanded]   = useState(false);
+  const { hidden, hide, show }      = useChatbotDock();
   const [isEnabled,  setIsEnabled]  = useState(true);
   const [messages,   setMessages]   = useState<Message[]>([]);
   const [input,      setInput]      = useState('');
@@ -444,26 +446,43 @@ export function DashboardChatbot({ mode }: DashboardChatbotProps) {
     <>
       {/* Floating button */}
       <AnimatePresence>
-        {!isOpen && (
-          <motion.button
+        {!isOpen && !hidden && (
+          <motion.div
             key="fab"
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
-            onClick={() => setIsOpen(true)}
-            className={cn(
-              'fixed bottom-6 right-6 z-[60] h-14 w-14 rounded-full shadow-2xl',
-              `bg-gradient-to-br ${cfg.gradient}`,
-              'flex items-center justify-center',
-              'hover:scale-110 active:scale-95 transition-transform duration-200',
-              'ring-2 ring-white/20',
-            )}
+            className="fixed bottom-6 right-6 z-[60] group"
           >
-            <Bot className="h-7 w-7 text-white" />
-            {/* Pulse ring */}
-            <span className="absolute inset-0 rounded-full animate-ping opacity-20 bg-white" />
-          </motion.button>
+            <button
+              onClick={() => setIsOpen(true)}
+              className={cn(
+                'relative h-14 w-14 rounded-full shadow-2xl',
+                `bg-gradient-to-br ${cfg.gradient}`,
+                'flex items-center justify-center',
+                'hover:scale-110 active:scale-95 transition-transform duration-200',
+                'ring-2 ring-white/20',
+              )}
+            >
+              <Bot className="h-7 w-7 text-white" />
+              {/* Pulse ring */}
+              <span className="absolute inset-0 rounded-full animate-ping opacity-20 bg-white" />
+            </button>
+            {/* Hide-widget badge — appears on hover */}
+            <button
+              onClick={hide}
+              title="Hide chatbot"
+              className="absolute -top-1.5 -left-1.5 h-6 w-6 rounded-full bg-background border border-border shadow flex items-center justify-center text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </motion.div>
         )}
+      </AnimatePresence>
+
+      {/* Docked tab when hidden */}
+      <AnimatePresence>
+        {hidden && !isOpen && <ChatbotDockTab onClick={show} className="z-[60]" />}
       </AnimatePresence>
 
       {/* Chat panel */}
