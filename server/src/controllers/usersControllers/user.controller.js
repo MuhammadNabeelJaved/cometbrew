@@ -34,6 +34,7 @@ import {
 } from "../../utils/sendEmails.js";
 import { notifyAdmins } from "../../utils/notificationService.js";
 import { fireAutomation, scheduleInactivityFollowup } from "../../utils/emailAutomationService.js";
+import { validateRealEmail } from "../../utils/emailValidation.js";
 
 // ─── Cookie helpers ───────────────────────────────────────────────────────────
 
@@ -72,6 +73,9 @@ export const registerUser = asyncHandler(async (req, res) => {
     if (!name || !email || !password) {
         throw new AppError("Name, email and password are required", 400);
     }
+
+    // Personal + business emails both accepted; disposable/temp and fake domains rejected
+    await validateRealEmail(email);
 
     const existing = await User.findOne({ email });
     if (existing) {
